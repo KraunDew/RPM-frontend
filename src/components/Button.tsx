@@ -26,7 +26,7 @@ function Button({ color, children, bold, ...props }: ButtonProps) {
     return (
         <button
             {...props}
-            className={`flex ${bg[selectedColor]} ${border[selectedColor]} ${bgHover[selectedColor]} ${bold ? "font-bold" : ""} border-2 text-white p-2 rounded-lg m-2`}
+            className={`flex m-4 ${bg[selectedColor]} ${border[selectedColor]} ${bgHover[selectedColor]} ${bold ? "font-bold" : ""} border-2 text-white p-2 rounded-lg m-2`}
         >
             {children}
         </button>

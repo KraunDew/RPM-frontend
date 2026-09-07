@@ -21,6 +21,12 @@ export default function RegisterPage() {
         await axios.post(`${process.env.NEXT_PUBLIC_BACKEND}/users/register`, user); // al backend le pasamos los valore obtenidos
     };
 
+    /**
+     * Ahora renderizamos el formulario de registro
+     * con sus campos correspondientes, nombre, apellido, correo y contraseña
+     * al darle al componente Button se envia al backend los datos guardados en "user"
+     */
+
     return (
         <form className="flex" onSubmit={registerUser}>
             <input type="text" name="firstName" placeholder="First Name" onChange={changeHandle} />

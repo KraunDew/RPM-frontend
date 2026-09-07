@@ -1,7 +1,7 @@
-import Link from "next/link";
+import Header from "@/components/Header";
 
 function page() {
-    return <Link href="/register">Register</Link>;
+    return <Header />;
 }
 
 export default page;

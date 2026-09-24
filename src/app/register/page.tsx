@@ -2,26 +2,37 @@
 
 import Button from "@/components/Button";
 import Header from "@/components/Header";
-import { IconUserEdit } from "@tabler/icons-react";
+import { Input } from "@/components/motion/input";
+import { IconEye, IconEyeOff, IconMail, IconUserEdit } from "@tabler/icons-react";
 import axios from "axios";
 import Link from "next/link";
-import { ChangeEvent, useState } from "react";
-import { User } from "../types/user.type"; // llamamos al type User
+import { redirect } from "next/navigation";
+import { useState } from "react";
 
 export default function RegisterPage() {
-    const [user, setUser] = useState<User>({ firstName: "", lastName: "", email: "", password: "" }); // Plantilla en vacio
-
-    const changeHandle = (e: ChangeEvent<HTMLInputElement>) => {
-        // al escribir en los inputs ejecutamos
-        const { name, value } = e.target;
-        setUser(rest => ({ ...rest, [name]: value })); // le damos valores a la plantilla vacia
-    };
-
     const registerUser = async (e: React.FormEvent<HTMLFormElement>) => {
         // se ejecuta al mandar el formularioj
         e.preventDefault(); // evitamos que se recargue la pagina
-        await axios.post(`${process.env.NEXT_PUBLIC_BACKEND}/users/register`, user); // al backend le pasamos los valore obtenidos
+        const user = {
+            firstName,
+            lastName,
+            email,
+            password: pass,
+        };
+        const res = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND}/users/register`, user, {
+            withCredentials: true,
+        }); // al backend le pasamos los valores obtenidos
+        localStorage.setItem("user", JSON.stringify(res.data));
+        redirect("/");
     };
+
+    const [email, setEmail] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [pass, setPass] = useState("");
+    const [show, setShow] = useState(false);
+
+    const emailError = email.length > 0 && !email.includes("@") ? "Enter a valid email address." : undefined;
 
     /**
      * Ahora renderizamos el formulario de registro
@@ -48,37 +59,77 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="flex flex-col gap-4">
-                        <input
-                            className="w-full h-12 px-4 text-white placeholder-indigo-300 bg-indigo-900 rounded-lg outline-none border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400/30 transition"
+                        <Input
+                            classNames={{
+                                label: "px-1 text-base font-medium text-white",
+                                field: "bg-indigo-900 border-transparent rounded-lg h-12",
+                                input: "!text-white !placeholder-indigo-300",
+                            }}
+                            label="Primer Nombre"
                             type="text"
+                            value={firstName}
+                            onChange={setFirstName}
                             name="firstName"
                             id="firstName"
                             placeholder="Nombre"
-                            onChange={changeHandle}
+                            required
                         />
-                        <input
-                            className="w-full h-12 px-4 text-white placeholder-indigo-300 bg-indigo-900 rounded-lg outline-none border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400/30 transition"
+                        <Input
+                            classNames={{
+                                label: "px-1 text-base font-medium text-white",
+                                field: "bg-indigo-900 border-transparent rounded-lg h-12",
+                                input: "!text-white !placeholder-indigo-300",
+                            }}
+                            label="Apellido"
                             type="text"
                             id="lastName"
                             name="lastName"
                             placeholder="Apellido"
-                            onChange={changeHandle}
+                            value={lastName}
+                            onChange={setLastName}
+                            required
                         />
-                        <input
-                            className="w-full h-12 px-4 text-white placeholder-indigo-300 bg-indigo-900 rounded-lg outline-none border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400/30 transition"
+                        <Input
+                            classNames={{
+                                label: "px-1 text-base font-medium text-white",
+                                field: "bg-indigo-900 border-transparent rounded-lg h-12",
+                                input: "!text-white !placeholder-indigo-300",
+                            }}
+                            label="Email"
                             type="email"
                             name="email"
                             id="email"
                             placeholder="example@rpm.cl"
-                            onChange={changeHandle}
+                            rightIcon={<IconMail className="text-white mr-4" size={64} />}
+                            value={email}
+                            onChange={setEmail}
+                            error={emailError}
+                            required
                         />
-                        <input
-                            className="w-full h-12 px-4 text-white placeholder-indigo-300 bg-indigo-900 rounded-lg outline-none border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400/30 transition"
-                            type="password"
+                        <Input
+                            classNames={{
+                                label: "px-1 text-base font-medium text-white",
+                                field: "bg-indigo-900 border-transparent rounded-lg h-12",
+                                input: "!text-white !placeholder-indigo-300",
+                            }}
+                            label="Contraseña"
+                            type={show ? "text" : "password"}
+                            value={pass}
+                            onChange={setPass}
                             name="password"
                             id="password"
                             placeholder="Contraseña"
-                            onChange={changeHandle}
+                            rightIcon={
+                                <button
+                                    type="button"
+                                    onClick={() => setShow(s => !s)}
+                                    aria-label={show ? "Ocultar Contraseña" : "Mostar contraseña"}
+                                    className="pointer-events-auto"
+                                >
+                                    {show ? <IconEye className="text-white" /> : <IconEyeOff className="text-white" />}
+                                </button>
+                            }
+                            required
                         />
                     </div>
 

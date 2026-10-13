@@ -22,7 +22,7 @@ export default function RegisterPage() {
         const res = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND}/users/register`, user, {
             withCredentials: true,
         }); // al backend le pasamos los valores obtenidos
-        localStorage.setItem("user", JSON.stringify(res.data));
+        localStorage.setItem("user", JSON.stringify(res.data.info));
         redirect("/");
     };
 
@@ -32,7 +32,7 @@ export default function RegisterPage() {
     const [pass, setPass] = useState("");
     const [show, setShow] = useState(false);
 
-    const emailError = email.length > 0 && !email.includes("@") ? "Enter a valid email address." : undefined;
+    const emailError = email.length > 0 && !email.includes("@") ? "Ingrese un correo valido." : undefined;
 
     /**
      * Ahora renderizamos el formulario de registro

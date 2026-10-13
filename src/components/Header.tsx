@@ -31,7 +31,7 @@ function Header() {
     const lista = [
         { name: "Inicio", route: "/", icon: <IconHome className="mr-2" /> },
         { name: "Talleres Aliados", route: "/workshops", icon: <IconTool className="mr-2" /> },
-        { name: "Catálogo", route: "/catalog", icon: <IconLayoutGrid className="mr-2" /> },
+        { name: "Catálogo", route: "/catalogo", icon: <IconLayoutGrid className="mr-2" /> },
         { name: "Sobre Nosotros", route: "/about", icon: <IconUsersGroup className="mr-2" /> },
     ];
     const pathname = usePathname();
@@ -60,7 +60,7 @@ function Header() {
     };
 
     return (
-        <nav className="flex bg-indigo-800 h-32 justify-between items-center">
+        <nav className="sticky top-0 z-50 flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-red-900/50 bg-[#090b0e]/95 px-4 py-3 text-white shadow-lg shadow-black/30 backdrop-blur-md"> 
             <Link href="/">
                 <Image
                     src="/assets/logo.png"
@@ -76,7 +76,11 @@ function Header() {
                     {lista.map(elemento => (
                         <li
                             key={elemento.name}
-                            className={`m-4 py-2 text-lg px-4 bg-transparent text-white ${elemento.route == pathname ? "border-b-red-600 border-b-4" : "hover:border-1 hover:border-b-4 hover:border-red-600"} rounded-lg hover:bg-red-500/40`}
+                            className={`m-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                            elemento.route === pathname
+                            ? "bg-red-700/20 text-red-400"
+                           : "text-gray-200 hover:bg-white/5 hover:text-red-400"
+                        }`}
                         >
                             <Link href={elemento.route} className="flex">
                                 {elemento.icon}
@@ -87,11 +91,21 @@ function Header() {
                 </ul>
             </div>
             <div>
-                <ul className="flex">
-                    <li className="m-4 py-2 px-4 text-white flex text-lg">
-                        <IconShoppingCart className="mr-2" />
-                        Carrito
-                    </li>
+                <ul className="flex"> 
+                    <li className="m-2">
+                    <Link
+                    href="/carrito"
+                     className={`flex items-center rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                        pathname === "/carrito"
+                        ? "bg-red-700 text-white"
+                          : "text-white hover:bg-red-700/30 hover:text-red-400"
+             }`}
+       >
+                  <IconShoppingCart className="mr-2 h-5 w-5" />
+                  Carrito
+        </Link>
+    </li>
+
                     <li className="m-4 py-2 px-4 text-white flex text-lg">
                         <IconHeart className="mr-2" />
                         Favoritos

@@ -1,297 +1,529 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-const productos = [
-  {
-    id: 1,
-    nombre: "Discos de freno deportivos",
-    categoria: "Frenos",
-    marca: "Bosch",
-    precio: 89990,
-    imagen:
-      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-  },
-  {
-    id: 2,
-    nombre: "Filtro de aire para motor",
-    categoria: "Filtros",
-    marca: "Bosch",
-    precio: 12990,
-    imagen:
-      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-  },
-  {
-    id: 3,
-    nombre: "Bujías de encendido",
-    categoria: "Motor",
-    marca: "NGK",
-    precio: 24990,
-    imagen:
-      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-  },
-  {
-    id: 4,
-    nombre: "Amortiguadores delanteros",
-    categoria: "Suspensión",
-    marca: "Monroe",
-    precio: 74990,
-    imagen:
-      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-  },
-  {
-    id: 5,
-    nombre: "Batería 12V",
-    categoria: "Electricidad",
-    marca: "Bosch",
-    precio: 79990,
-    imagen:
-      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-  },
-  {
-    id: 6,
-    nombre: "Filtro de aceite",
-    categoria: "Filtros",
-    marca: "Mann",
-    precio: 8990,
-    imagen:
-      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-  },
+type Producto = {
+    id: number;
+    nombre: string;
+    categoria: string;
+    marca: string;
+    precio: number;
+    imagen: string;
+};
+
+type ProductoCarrito = {
+    id: number;
+    name: string;
+    category: string;
+    brand: string;
+    price: number;
+    image: string;
+    quantity: number;
+};
+
+const STORAGE_KEY = "rpm-carrito";
+
+const productos: Producto[] = [
+    {
+        id: 1,
+        nombre: "Discos de freno deportivos",
+        categoria: "Frenos",
+        marca: "Bosch",
+        precio: 89990,
+        imagen:
+            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
+    },
+    {
+        id: 2,
+        nombre: "Filtro de aire para motor",
+        categoria: "Filtros",
+        marca: "Bosch",
+        precio: 12990,
+        imagen:
+            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
+    },
+    {
+        id: 3,
+        nombre: "Bujías de encendido",
+        categoria: "Motor",
+        marca: "NGK",
+        precio: 24990,
+        imagen:
+            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
+    },
+    {
+        id: 4,
+        nombre: "Amortiguadores delanteros",
+        categoria: "Suspensión",
+        marca: "Monroe",
+        precio: 74990,
+        imagen:
+            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
+    },
+    {
+        id: 5,
+        nombre: "Batería 12V",
+        categoria: "Electricidad",
+        marca: "Bosch",
+        precio: 79990,
+        imagen:
+            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
+    },
+    {
+        id: 6,
+        nombre: "Filtro de aceite",
+        categoria: "Filtros",
+        marca: "Mann",
+        precio: 8990,
+        imagen:
+            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
+    },
 ];
 
 const categorias = [
-  "Todas",
-  "Frenos",
-  "Filtros",
-  "Motor",
-  "Suspensión",
-  "Electricidad",
+    "Todas",
+    "Frenos",
+    "Filtros",
+    "Motor",
+    "Suspensión",
+    "Electricidad",
 ];
 
+const marcas = ["Todas", "Bosch", "NGK", "Monroe", "Mann"];
+
 const formatoPrecio = (precio: number) =>
-  precio.toLocaleString("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  });
-
-export default function CatalogoPage() {
-  const [busqueda, setBusqueda] = useState("");
-  const [categoria, setCategoria] = useState("Todas");
-  const [marca, setMarca] = useState("Todas");
-  const [orden, setOrden] = useState("relevancia");
-  const [carrito, setCarrito] = useState<number[]>([]);
-
-  const resultados = useMemo(() => {
-    const lista = productos.filter((producto) => {
-      const coincideTexto = producto.nombre
-        .toLowerCase()
-        .includes(busqueda.toLowerCase());
-
-      const coincideCategoria =
-        categoria === "Todas" ||
-        producto.categoria === categoria;
-
-      const coincideMarca =
-        marca === "Todas" || producto.marca === marca;
-
-      return coincideTexto && coincideCategoria && coincideMarca;
+    precio.toLocaleString("es-CL", {
+        style: "currency",
+        currency: "CLP",
+        maximumFractionDigits: 0,
     });
 
-    if (orden === "menor") {
-      lista.sort((a, b) => a.precio - b.precio);
+export default function CatalogoPage() {
+    const [busqueda, setBusqueda] = useState("");
+    const [categoria, setCategoria] = useState("Todas");
+    const [marca, setMarca] = useState("Todas");
+    const [orden, setOrden] = useState("relevancia");
+
+    const [carrito, setCarrito] = useState<ProductoCarrito[]>([]);
+    const [carritoCargado, setCarritoCargado] = useState(false);
+    const [mensaje, setMensaje] = useState("");
+
+    // Recuperar el carrito guardado en el navegador
+    useEffect(() => {
+        try {
+            const guardado = localStorage.getItem(STORAGE_KEY);
+
+            if (guardado) {
+                const datos = JSON.parse(guardado);
+
+                if (Array.isArray(datos)) {
+                    setCarrito(datos);
+                }
+            }
+        } catch (error) {
+            console.error("Error al recuperar el carrito:", error);
+        } finally {
+            setCarritoCargado(true);
+        }
+    }, []);
+
+    // Guardar automáticamente los cambios del carrito
+    useEffect(() => {
+        if (carritoCargado) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(carrito));
+        }
+    }, [carrito, carritoCargado]);
+
+    // Filtrar y ordenar los productos
+    const resultados = useMemo(() => {
+        const texto = busqueda.trim().toLowerCase();
+
+        const lista = productos.filter((producto) => {
+            const coincideBusqueda =
+                producto.nombre.toLowerCase().includes(texto) ||
+                producto.categoria.toLowerCase().includes(texto) ||
+                producto.marca.toLowerCase().includes(texto);
+
+            const coincideCategoria =
+                categoria === "Todas" ||
+                producto.categoria === categoria;
+
+            const coincideMarca =
+                marca === "Todas" || producto.marca === marca;
+
+            return (
+                coincideBusqueda &&
+                coincideCategoria &&
+                coincideMarca
+            );
+        });
+
+        if (orden === "menor") {
+            lista.sort((a, b) => a.precio - b.precio);
+        } else if (orden === "mayor") {
+            lista.sort((a, b) => b.precio - a.precio);
+        } else if (orden === "nombre") {
+            lista.sort((a, b) =>
+                a.nombre.localeCompare(b.nombre, "es")
+            );
+        }
+
+        return lista;
+    }, [busqueda, categoria, marca, orden]);
+
+    // Agregar productos al carrito
+    function agregarAlCarrito(id: number) {
+        const producto = productos.find((item) => item.id === id);
+
+        if (!producto) return;
+
+        setCarrito((actual) => {
+            const existente = actual.find((item) => item.id === id);
+
+            if (existente) {
+                return actual.map((item) =>
+                    item.id === id
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
+                );
+            }
+
+            return [
+                ...actual,
+                {
+                    id: producto.id,
+                    name: producto.nombre,
+                    category: producto.categoria,
+                    brand: producto.marca,
+                    price: producto.precio,
+                    image: producto.imagen,
+                    quantity: 1,
+                },
+            ];
+        });
+
+        setMensaje(`${producto.nombre} agregado al carrito`);
+
+        window.setTimeout(() => {
+            setMensaje("");
+        }, 2500);
     }
 
-    if (orden === "mayor") {
-      lista.sort((a, b) => b.precio - a.precio);
+    function limpiarFiltros() {
+        setBusqueda("");
+        setCategoria("Todas");
+        setMarca("Todas");
+        setOrden("relevancia");
     }
 
-    return lista;
-  }, [busqueda, categoria, marca, orden]);
+    const totalUnidades = carrito.reduce(
+        (total, producto) => total + producto.quantity,
+        0
+    );
 
-  function agregarAlCarrito(id: number) {
-    setCarrito((actual) => [...actual, id]);
-  }
+    return (
+        <main className="min-h-screen bg-[#090b0e] text-white">
+            {/* Encabezado del catálogo */}
+            <section className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-[#171b22] via-[#0d1015] to-[#090b0e] px-5 py-16 sm:px-10 sm:py-20">
+                <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-red-700/10 blur-3xl" />
 
-  function limpiarFiltros() {
-    setBusqueda("");
-    setCategoria("Todas");
-    setMarca("Todas");
-    setOrden("relevancia");
-  }
+                <div className="relative mx-auto max-w-7xl">
+                    <Link
+                        href="/"
+                        className="inline-block text-sm text-gray-400 transition hover:text-red-500"
+                    >
+                        ← Volver al inicio
+                    </Link>
 
-  return (
-    <main className="min-h-screen bg-[#090b0e] text-white">
-      {/* Encabezado del catálogo */}
-      <section className="border-b border-white/10 bg-gradient-to-r from-[#190909] to-[#101318] px-6 py-16 md:px-12">
-        <div className="mx-auto max-w-7xl">
-          <p className="mb-3 text-sm text-gray-400">
-            Inicio / <span className="text-red-500">Catálogo</span>
-          </p>
+                    <div className="mt-8 max-w-3xl">
+                        <p className="text-sm font-bold uppercase tracking-[0.3em] text-red-500">
+                            RPM · Repuestos y accesorios
+                        </p>
 
-          <h1 className="text-4xl font-black md:text-6xl">
-            Nuestro <span className="text-red-600">catálogo</span>
-          </h1>
+                        <h1 className="mt-4 text-4xl font-black sm:text-6xl">
+                            Nuestro{" "}
+                            <span className="text-red-600">catálogo</span>
+                        </h1>
 
-          <p className="mt-4 max-w-xl text-gray-300">
-            Encuentra repuestos y accesorios para mantener
-            tu vehículo en las mejores condiciones.
-          </p>
-        </div>
-      </section>
+                        <p className="mt-5 max-w-2xl text-base leading-7 text-gray-400 sm:text-lg">
+                            Encuentra los repuestos que tu vehículo necesita.
+                            Busca, filtra y compara productos desde un solo lugar.
+                        </p>
 
-      {/* Contenido */}
-      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-10 md:px-12 lg:grid-cols-[250px_1fr]">
-        {/* Filtros */}
-        <aside className="h-fit rounded-xl border border-white/10 bg-[#111419] p-5">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-bold">Filtros</h2>
-            <button
-              onClick={limpiarFiltros}
-              className="text-sm text-red-500 hover:text-red-400"
-            >
-              Limpiar
-            </button>
-          </div>
+                        <div className="mt-8 flex flex-wrap gap-3">
+                            <Link
+                                href="/"
+                                className="rounded-lg border border-white/15 px-5 py-3 font-semibold transition hover:border-red-500 hover:bg-white/5"
+                            >
+                                Volver al inicio
+                            </Link>
 
-          <label className="mb-2 block text-sm font-semibold">
-            Categoría
-          </label>
+                            <Link
+                                href="/carrito"
+                                className="inline-flex items-center gap-3 rounded-lg bg-red-700 px-5 py-3 font-bold transition hover:bg-red-600"
+                            >
+                                <span>🛒 Ver carrito</span>
 
-          <div className="mb-6 flex flex-col gap-3">
-            {categorias.map((item) => (
-              <label
-                key={item}
-                className="flex cursor-pointer items-center gap-2 text-sm text-gray-300"
-              >
-                <input
-                  type="radio"
-                  name="categoria"
-                  checked={categoria === item}
-                  onChange={() => setCategoria(item)}
-                  className="accent-red-600"
-                />
-                {item}
-              </label>
-            ))}
-          </div>
+                                <span className="rounded-full bg-black/30 px-2.5 py-1 text-sm">
+                                    {carritoCargado ? totalUnidades : 0}
+                                </span>
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-          <label
-            htmlFor="marca"
-            className="mb-2 block text-sm font-semibold"
-          >
-            Marca
-          </label>
+            {/* Contenido del catálogo */}
+            <section className="mx-auto max-w-7xl px-5 py-10 sm:px-10">
+                {/* Buscador */}
+                <div className="rounded-2xl border border-white/10 bg-[#111419] p-5 sm:p-7">
+                    <label
+                        htmlFor="busqueda-productos"
+                        className="mb-3 block text-lg font-bold"
+                    >
+                        Buscar repuestos
+                    </label>
 
-          <select
-            id="marca"
-            value={marca}
-            onChange={(e) => setMarca(e.target.value)}
-            className="mb-6 w-full rounded-lg border border-white/15 bg-[#090b0e] p-3 text-sm outline-none focus:border-red-600"
-          >
-            <option value="Todas">Todas las marcas</option>
-            <option value="Bosch">Bosch</option>
-            <option value="NGK">NGK</option>
-            <option value="Monroe">Monroe</option>
-            <option value="Mann">Mann</option>
-          </select>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                            id="busqueda-productos"
+                            type="search"
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value)}
+                            placeholder="Ej.: filtros, Bosch, frenos..."
+                            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#090b0e] px-4 py-3 text-white outline-none transition placeholder:text-gray-500 focus:border-red-600"
+                        />
 
-          <p className="mb-2 text-sm font-semibold">
-            Carrito
-          </p>
-          <p className="text-sm text-gray-400">
-            Productos agregados: {carrito.length}
-          </p>
-        </aside>
+                        <button
+                            onClick={() => setBusqueda(busqueda.trim())}
+                            className="rounded-lg bg-red-700 px-7 py-3 font-bold transition hover:bg-red-600"
+                        >
+                            Buscar
+                        </button>
+                    </div>
 
-        {/* Productos */}
-        <div className="min-w-0">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-            <input
-              type="search"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar repuestos..."
-              className="min-w-0 flex-1 rounded-lg border border-white/15 bg-[#111419] px-4 py-3 outline-none placeholder:text-gray-500 focus:border-red-600"
-            />
+                    {/* Filtros */}
+                    <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div>
+                            <label
+                                htmlFor="filtro-categoria"
+                                className="mb-2 block text-sm text-gray-400"
+                            >
+                                Categoría
+                            </label>
 
-            <select
-              value={orden}
-              onChange={(e) => setOrden(e.target.value)}
-              className="rounded-lg border border-white/15 bg-[#111419] px-4 py-3 outline-none focus:border-red-600"
-              aria-label="Ordenar productos"
-            >
-              <option value="relevancia">Más relevantes</option>
-              <option value="menor">Menor precio</option>
-              <option value="mayor">Mayor precio</option>
-            </select>
-          </div>
+                            <select
+                                id="filtro-categoria"
+                                value={categoria}
+                                onChange={(e) => setCategoria(e.target.value)}
+                                className="w-full rounded-lg border border-white/10 bg-[#090b0e] px-4 py-3 text-white outline-none focus:border-red-600"
+                            >
+                                {categorias.map((item) => (
+                                    <option key={item} value={item}>
+                                        {item}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-          <p className="mb-5 text-sm text-gray-400">
-            Mostrando {resultados.length} productos
-          </p>
+                        <div>
+                            <label
+                                htmlFor="filtro-marca"
+                                className="mb-2 block text-sm text-gray-400"
+                            >
+                                Marca
+                            </label>
 
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {resultados.map((producto) => (
-              <article
-                key={producto.id}
-                className="overflow-hidden rounded-xl border border-white/10 bg-[#111419] transition duration-300 hover:-translate-y-1 hover:border-red-600/60"
-              >
-                <div className="flex h-48 items-center justify-center bg-[#191d22] p-4">
-                  <img
-                    src={producto.imagen}
-                    alt={producto.nombre}
-                    className="h-full w-full rounded-lg object-cover"
-                  />
+                            <select
+                                id="filtro-marca"
+                                value={marca}
+                                onChange={(e) => setMarca(e.target.value)}
+                                className="w-full rounded-lg border border-white/10 bg-[#090b0e] px-4 py-3 text-white outline-none focus:border-red-600"
+                            >
+                                {marcas.map((item) => (
+                                    <option key={item} value={item}>
+                                        {item}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="orden-precio"
+                                className="mb-2 block text-sm text-gray-400"
+                            >
+                                Ordenar por
+                            </label>
+
+                            <select
+                                id="orden-precio"
+                                value={orden}
+                                onChange={(e) => setOrden(e.target.value)}
+                                className="w-full rounded-lg border border-white/10 bg-[#090b0e] px-4 py-3 text-white outline-none focus:border-red-600"
+                            >
+                                <option value="relevancia">Relevancia</option>
+                                <option value="menor">Precio: menor a mayor</option>
+                                <option value="mayor">Precio: mayor a menor</option>
+                                <option value="nombre">Nombre: A-Z</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={limpiarFiltros}
+                        className="mt-5 text-sm font-semibold text-red-400 transition hover:text-red-300"
+                    >
+                        Limpiar búsqueda y filtros
+                    </button>
                 </div>
 
-                <div className="p-5">
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-red-500">
-                    {producto.categoria}
-                  </p>
+                {/* Resultados */}
+                <div className="mb-6 mt-10 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-2xl font-bold">
+                            Repuestos disponibles
+                        </h2>
 
-                  <h3 className="min-h-12 font-bold">
-                    {producto.nombre}
-                  </h3>
+                        <p className="mt-1 text-sm text-gray-400">
+                            {resultados.length} producto(s) encontrado(s)
+                        </p>
+                    </div>
 
-                  <p className="mt-2 text-sm text-gray-400">
-                    Marca: {producto.marca}
-                  </p>
-
-                  <p className="mt-4 text-2xl font-black">
-                    {formatoPrecio(producto.precio)}
-                  </p>
-
-                  <button
-                    onClick={() => agregarAlCarrito(producto.id)}
-                    className="mt-5 w-full rounded-lg bg-red-700 px-4 py-3 font-bold transition hover:bg-red-600"
-                  >
-                    + Agregar al carrito
-                  </button>
+                    <Link
+                        href="/carrito"
+                        className="text-sm font-semibold text-red-400 transition hover:text-red-300"
+                    >
+                        Ir al carrito ({carritoCargado ? totalUnidades : 0}) →
+                    </Link>
                 </div>
-              </article>
-            ))}
-          </div>
 
-          {resultados.length === 0 && (
-            <div className="rounded-xl border border-white/10 py-16 text-center">
-              <h3 className="text-xl font-bold">
-                No encontramos productos
-              </h3>
-              <p className="mt-2 text-gray-400">
-                Prueba con otro nombre o cambia los filtros.
-              </p>
-              <button
-                onClick={limpiarFiltros}
-                className="mt-5 rounded-lg bg-red-700 px-5 py-3 font-bold hover:bg-red-600"
-              >
-                Ver todos los productos
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-    </main>
-  );
+                {/* Mensaje al agregar un producto */}
+                {mensaje && (
+                    <div
+                        role="status"
+                        className="mb-6 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400"
+                    >
+                        ✓ {mensaje}
+                    </div>
+                )}
+
+                {/* Tarjetas */}
+                {resultados.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {resultados.map((producto) => {
+                            const cantidadEnCarrito =
+                                carrito.find(
+                                    (item) => item.id === producto.id
+                                )?.quantity ?? 0;
+
+                            return (
+                                <article
+                                    key={producto.id}
+                                    className="group overflow-hidden rounded-2xl border border-white/10 bg-[#111419] transition duration-300 hover:-translate-y-1 hover:border-red-600/60"
+                                >
+                                    <div className="relative h-48 overflow-hidden bg-[#1a1f26]">
+                                        <img
+                                            src={producto.imagen}
+                                            alt={producto.nombre}
+                                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                                        />
+
+                                        <span className="absolute left-3 top-3 rounded-md bg-black/75 px-3 py-1 text-xs font-semibold text-red-400">
+                                            {producto.categoria}
+                                        </span>
+                                    </div>
+
+                                    <div className="p-5">
+                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                                            {producto.marca}
+                                        </p>
+
+                                        <h3 className="mt-2 min-h-14 text-lg font-bold leading-6">
+                                            {producto.nombre}
+                                        </h3>
+
+                                        <div className="mt-4 border-t border-white/10 pt-4">
+                                            <p className="text-xs text-gray-500">
+                                                Precio
+                                            </p>
+
+                                            <p className="mt-1 text-2xl font-black text-white">
+                                                {formatoPrecio(producto.precio)}
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            onClick={() =>
+                                                agregarAlCarrito(producto.id)
+                                            }
+                                            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-3 font-bold transition hover:bg-red-600 active:scale-[0.98]"
+                                        >
+                                            <span>🛒</span>
+                                            Agregar al carrito
+                                        </button>
+
+                                        {cantidadEnCarrito > 0 && (
+                                            <p className="mt-3 text-center text-xs text-green-400">
+                                                {cantidadEnCarrito} unidad(es) en
+                                                tu carrito
+                                            </p>
+                                        )}
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-white/10 bg-[#111419] px-5 py-16 text-center">
+                        <p className="text-4xl">🔎</p>
+
+                        <h3 className="mt-4 text-xl font-bold">
+                            No encontramos productos
+                        </h3>
+
+                        <p className="mt-2 text-gray-400">
+                            Prueba con otra búsqueda o cambia los filtros.
+                        </p>
+
+                        <button
+                            onClick={limpiarFiltros}
+                            className="mt-6 rounded-lg bg-red-700 px-6 py-3 font-bold transition hover:bg-red-600"
+                        >
+                            Limpiar filtros
+                        </button>
+                    </div>
+                )}
+
+                {/* Pie */}
+                <div className="mt-14 rounded-xl border border-white/10 bg-[#111419] p-6 text-center">
+                    <p className="font-semibold">
+                        ¿No encuentras el repuesto que buscas?
+                    </p>
+
+                    <p className="mt-2 text-sm text-gray-400">
+                        Explora nuestros talleres aliados o vuelve al inicio.
+                    </p>
+
+                    <div className="mt-5 flex flex-wrap justify-center gap-3">
+                        <Link
+                            href="/workshops"
+                            className="rounded-lg border border-white/15 px-5 py-3 font-semibold transition hover:border-red-500"
+                        >
+                            Talleres aliados
+                        </Link>
+
+                        <Link
+                            href="/"
+                            className="rounded-lg border border-white/15 px-5 py-3 font-semibold transition hover:border-red-500"
+                        >
+                            Inicio
+                        </Link>
+                    </div>
+                </div>
+            </section>
+        </main>
+    );
 }

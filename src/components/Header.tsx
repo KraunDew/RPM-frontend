@@ -29,11 +29,13 @@ function Header() {
     }, []);
 
     const lista = [
-        { name: "Inicio", route: "/", icon: <IconHome className="mr-2" /> },
-        { name: "Talleres Aliados", route: "/workshops", icon: <IconTool className="mr-2" /> },
-        { name: "Catálogo", route: "/catalogo", icon: <IconLayoutGrid className="mr-2" /> },
-        { name: "Sobre Nosotros", route: "/about", icon: <IconUsersGroup className="mr-2" /> },
+         { name: "Inicio", route: "/", icon: <IconHome className="mr-2" /> },
+         { name: "Talleres Aliados", route: "/workshops", icon: <IconTool className="mr-2" /> },
+         { name: "Catálogo", route: "/catalogo", icon: <IconLayoutGrid className="mr-2" /> },
+         { name: "Sobre Nosotros", route: "/about", icon: <IconUsersGroup className="mr-2" /> },
+         { name: "Carrito", route: "/carrito", icon: <IconShoppingCart className="mr-2" /> },
     ];
+
     const pathname = usePathname();
 
     const logout = async () => {

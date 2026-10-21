@@ -100,38 +100,46 @@ function leerCarrito(): ProductoCarrito[] {
         const datos: unknown = JSON.parse(guardado);
         if (!Array.isArray(datos)) return [];
 
-        return datos
-            .map((item: Record<string, unknown>) => {
-                // Compatibilidad con el formato anterior que usaba "id".
-                const id = item.id_product ?? item.id;
-                const quantity = Math.floor(Number(item.quantity));
-                const price = Number(item.price);
+        const productos: (ProductoCarrito | null)[] = datos.map((elemento: unknown): ProductoCarrito | null => {
+            if (!elemento || typeof elemento !== "object") {
+                return null;
+            }
 
-                if (
-                    (typeof id !== "string" && typeof id !== "number") ||
-                    !Number.isFinite(quantity) ||
-                    quantity < 1 ||
-                    !Number.isFinite(price) ||
-                    price < 0 ||
-                    typeof item.name !== "string"
-                ) {
-                    return null;
-                }
+            const item = elemento as Record<string, unknown>;
 
-                return {
-                    id_product: String(id),
-                    sku: String(item.sku ?? ""),
-                    name: item.name,
-                    model: typeof item.model === "string" ? item.model : undefined,
-                    category: typeof item.category === "string" ? item.category : undefined,
-                    brand: typeof item.brand === "string" ? item.brand : undefined,
-                    price,
-                    stock: Math.max(0, Number(item.stock) || 0),
-                    image: typeof item.image === "string" ? item.image : undefined,
-                    quantity,
-                } satisfies ProductoCarrito;
-            })
-            .filter((item): item is ProductoCarrito => item !== null);
+            // Compatibilidad con el formato anterior que usaba "id".
+            const id = item.id_product ?? item.id;
+            const quantity = Math.floor(Number(item.quantity));
+            const price = Number(item.price);
+
+            if (
+                (typeof id !== "string" && typeof id !== "number") ||
+                !Number.isFinite(quantity) ||
+                quantity < 1 ||
+                !Number.isFinite(price) ||
+                price < 0 ||
+                typeof item.name !== "string"
+            ) {
+                return null;
+            }
+
+            const producto: ProductoCarrito = {
+                id_product: String(id),
+                sku: String(item.sku ?? ""),
+                name: item.name,
+                model: typeof item.model === "string" ? item.model : undefined,
+                category: typeof item.category === "string" ? item.category : undefined,
+                brand: typeof item.brand === "string" ? item.brand : undefined,
+                price,
+                stock: Math.max(0, Number(item.stock) || 0),
+                image: typeof item.image === "string" ? item.image : undefined,
+                quantity,
+            };
+
+            return producto;
+        });
+
+        return productos.filter((producto): producto is ProductoCarrito => producto !== null);
     } catch (error) {
         console.error("No se pudo recuperar el carrito:", error);
         return [];

@@ -1,529 +1,477 @@
-
 "use client";
 
+import Header from "@/components/Header";
+import {
+    IconAdjustmentsHorizontal,
+    IconAlertCircle,
+    IconArrowRight,
+    IconCar,
+    IconSearch,
+    IconShoppingBag,
+    IconX,
+} from "@tabler/icons-react";
+import axios from "axios";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-type Producto = {
-    id: number;
-    nombre: string;
-    categoria: string;
-    marca: string;
-    precio: number;
-    imagen: string;
-};
-
-type ProductoCarrito = {
-    id: number;
+type Product = {
+    id_product: string;
+    sku: string;
     name: string;
-    category: string;
-    brand: string;
+    model: string;
+    material?: string | null;
     price: number;
-    image: string;
-    quantity: number;
+    description?: string | null;
+    stock: number;
+    category?: { name: string } | null;
+    brand?: { name: string } | null;
+    supplier?: { name: string } | null;
 };
 
-const STORAGE_KEY = "rpm-carrito";
+type SortOption = "name" | "price-asc" | "price-desc";
 
-const productos: Producto[] = [
-    {
-        id: 1,
-        nombre: "Discos de freno deportivos",
-        categoria: "Frenos",
-        marca: "Bosch",
-        precio: 89990,
-        imagen:
-            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-    },
-    {
-        id: 2,
-        nombre: "Filtro de aire para motor",
-        categoria: "Filtros",
-        marca: "Bosch",
-        precio: 12990,
-        imagen:
-            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-    },
-    {
-        id: 3,
-        nombre: "Bujías de encendido",
-        categoria: "Motor",
-        marca: "NGK",
-        precio: 24990,
-        imagen:
-            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-    },
-    {
-        id: 4,
-        nombre: "Amortiguadores delanteros",
-        categoria: "Suspensión",
-        marca: "Monroe",
-        precio: 74990,
-        imagen:
-            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-    },
-    {
-        id: 5,
-        nombre: "Batería 12V",
-        categoria: "Electricidad",
-        marca: "Bosch",
-        precio: 79990,
-        imagen:
-            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-    },
-    {
-        id: 6,
-        nombre: "Filtro de aceite",
-        categoria: "Filtros",
-        marca: "Mann",
-        precio: 8990,
-        imagen:
-            "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
-    },
-];
-
-const categorias = [
-    "Todas",
-    "Frenos",
-    "Filtros",
-    "Motor",
-    "Suspensión",
-    "Electricidad",
-];
-
-const marcas = ["Todas", "Bosch", "NGK", "Monroe", "Mann"];
-
-const formatoPrecio = (precio: number) =>
-    precio.toLocaleString("es-CL", {
+function formatPrice(price: number) {
+    return new Intl.NumberFormat("es-CL", {
         style: "currency",
         currency: "CLP",
         maximumFractionDigits: 0,
-    });
+    }).format(price);
+}
 
-export default function CatalogoPage() {
-    const [busqueda, setBusqueda] = useState("");
-    const [categoria, setCategoria] = useState("Todas");
-    const [marca, setMarca] = useState("Todas");
-    const [orden, setOrden] = useState("relevancia");
+export default function CatalogPage() {
+    const [products, setProducts] = useState<Product[]>([]);
+    const [search, setSearch] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("Todas");
+    const [sort, setSort] = useState<SortOption>("name");
+    const [onlyAvailable, setOnlyAvailable] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    const [carrito, setCarrito] = useState<ProductoCarrito[]>([]);
-    const [carritoCargado, setCarritoCargado] = useState(false);
-    const [mensaje, setMensaje] = useState("");
+    const loadProducts = useCallback(async () => {
+        const backend = process.env.NEXT_PUBLIC_BACKEND;
 
-    // Recuperar el carrito guardado en el navegador
-    useEffect(() => {
+        if (!backend) {
+            setError("No pudimos cargar el catálogo. Inténtalo más tarde.");
+            setLoading(false);
+            return;
+        }
+
         try {
-            const guardado = localStorage.getItem(STORAGE_KEY);
+            setLoading(true);
+            setError("");
 
-            if (guardado) {
-                const datos = JSON.parse(guardado);
+            const response = await axios.get(`${backend.replace(/\/+$/, "")}/products`, { timeout: 15000 });
 
-                if (Array.isArray(datos)) {
-                    setCarrito(datos);
-                }
-            }
-        } catch (error) {
-            console.error("Error al recuperar el carrito:", error);
+            const payload = response.data;
+
+            const items: Product[] = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.data)
+                  ? payload.data
+                  : Array.isArray(payload?.products)
+                    ? payload.products
+                    : [];
+
+            setProducts(items);
+        } catch {
+            setError("No pudimos cargar los repuestos. Revisa tu conexión e inténtalo nuevamente.");
         } finally {
-            setCarritoCargado(true);
+            setLoading(false);
         }
     }, []);
 
-    // Guardar automáticamente los cambios del carrito
     useEffect(() => {
-        if (carritoCargado) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(carrito));
-        }
-    }, [carrito, carritoCargado]);
+        void loadProducts();
+    }, [loadProducts]);
 
-    // Filtrar y ordenar los productos
-    const resultados = useMemo(() => {
-        const texto = busqueda.trim().toLowerCase();
+    const categories = useMemo(() => {
+        const names = products.map(product => product.category?.name).filter((name): name is string => Boolean(name));
 
-        const lista = productos.filter((producto) => {
-            const coincideBusqueda =
-                producto.nombre.toLowerCase().includes(texto) ||
-                producto.categoria.toLowerCase().includes(texto) ||
-                producto.marca.toLowerCase().includes(texto);
+        return ["Todas", ...Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "es"))];
+    }, [products]);
 
-            const coincideCategoria =
-                categoria === "Todas" ||
-                producto.categoria === categoria;
+    const filteredProducts = useMemo(() => {
+        const query = search.trim().toLocaleLowerCase("es");
 
-            const coincideMarca =
-                marca === "Todas" || producto.marca === marca;
+        const result = products.filter(product => {
+            const matchesSearch = [
+                product.name,
+                product.sku,
+                product.model,
+                product.brand?.name,
+                product.category?.name,
+            ].some(value => value?.toLocaleLowerCase("es").includes(query));
 
-            return (
-                coincideBusqueda &&
-                coincideCategoria &&
-                coincideMarca
-            );
+            const matchesCategory = selectedCategory === "Todas" || product.category?.name === selectedCategory;
+
+            const matchesStock = !onlyAvailable || product.stock > 0;
+
+            return matchesSearch && matchesCategory && matchesStock;
         });
 
-        if (orden === "menor") {
-            lista.sort((a, b) => a.precio - b.precio);
-        } else if (orden === "mayor") {
-            lista.sort((a, b) => b.precio - a.precio);
-        } else if (orden === "nombre") {
-            lista.sort((a, b) =>
-                a.nombre.localeCompare(b.nombre, "es")
-            );
-        }
-
-        return lista;
-    }, [busqueda, categoria, marca, orden]);
-
-    // Agregar productos al carrito
-    function agregarAlCarrito(id: number) {
-        const producto = productos.find((item) => item.id === id);
-
-        if (!producto) return;
-
-        setCarrito((actual) => {
-            const existente = actual.find((item) => item.id === id);
-
-            if (existente) {
-                return actual.map((item) =>
-                    item.id === id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            }
-
-            return [
-                ...actual,
-                {
-                    id: producto.id,
-                    name: producto.nombre,
-                    category: producto.categoria,
-                    brand: producto.marca,
-                    price: producto.precio,
-                    image: producto.imagen,
-                    quantity: 1,
-                },
-            ];
+        return result.sort((a, b) => {
+            if (sort === "price-asc") return a.price - b.price;
+            if (sort === "price-desc") return b.price - a.price;
+            return a.name.localeCompare(b.name, "es");
         });
+    }, [products, search, selectedCategory, sort, onlyAvailable]);
 
-        setMensaje(`${producto.nombre} agregado al carrito`);
+    const clearFilters = () => {
+        setSearch("");
+        setSelectedCategory("Todas");
+        setSort("name");
+        setOnlyAvailable(false);
+    };
 
-        window.setTimeout(() => {
-            setMensaje("");
-        }, 2500);
-    }
-
-    function limpiarFiltros() {
-        setBusqueda("");
-        setCategoria("Todas");
-        setMarca("Todas");
-        setOrden("relevancia");
-    }
-
-    const totalUnidades = carrito.reduce(
-        (total, producto) => total + producto.quantity,
-        0
-    );
+    const hasFilters = search !== "" || selectedCategory !== "Todas" || sort !== "name" || onlyAvailable;
 
     return (
-        <main className="min-h-screen bg-[#090b0e] text-white">
-            {/* Encabezado del catálogo */}
-            <section className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-[#171b22] via-[#0d1015] to-[#090b0e] px-5 py-16 sm:px-10 sm:py-20">
-                <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-red-700/10 blur-3xl" />
+        <main className="relative min-h-screen overflow-hidden bg-[#090909] text-white">
+            {/* Fondo ambiental */}
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                style={{
+                    backgroundImage: `
+            radial-gradient(ellipse at 50% 0%, rgba(127,29,29,0.16), transparent 55%),
+            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)
+          `,
+                    backgroundSize: "auto, 48px 48px, 48px 48px",
+                    maskImage: "linear-gradient(to bottom, black 10%, transparent 85%)",
+                }}
+            />
 
-                <div className="relative mx-auto max-w-7xl">
-                    <Link
-                        href="/"
-                        className="inline-block text-sm text-gray-400 transition hover:text-red-500"
-                    >
-                        ← Volver al inicio
-                    </Link>
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -top-32 left-1/2 h-[32rem] w-[44rem] -translate-x-1/2 rounded-full bg-red-700/[0.10] blur-[150px]"
+            />
 
-                    <div className="mt-8 max-w-3xl">
-                        <p className="text-sm font-bold uppercase tracking-[0.3em] text-red-500">
-                            RPM · Repuestos y accesorios
-                        </p>
+            <div className="relative z-10">
+                <Header />
 
-                        <h1 className="mt-4 text-4xl font-black sm:text-6xl">
-                            Nuestro{" "}
-                            <span className="text-red-600">catálogo</span>
-                        </h1>
-
-                        <p className="mt-5 max-w-2xl text-base leading-7 text-gray-400 sm:text-lg">
-                            Encuentra los repuestos que tu vehículo necesita.
-                            Busca, filtra y compara productos desde un solo lugar.
-                        </p>
-
-                        <div className="mt-8 flex flex-wrap gap-3">
-                            <Link
-                                href="/"
-                                className="rounded-lg border border-white/15 px-5 py-3 font-semibold transition hover:border-red-500 hover:bg-white/5"
-                            >
-                                Volver al inicio
-                            </Link>
-
-                            <Link
-                                href="/carrito"
-                                className="inline-flex items-center gap-3 rounded-lg bg-red-700 px-5 py-3 font-bold transition hover:bg-red-600"
-                            >
-                                <span>🛒 Ver carrito</span>
-
-                                <span className="rounded-full bg-black/30 px-2.5 py-1 text-sm">
-                                    {carritoCargado ? totalUnidades : 0}
-                                </span>
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Contenido del catálogo */}
-            <section className="mx-auto max-w-7xl px-5 py-10 sm:px-10">
-                {/* Buscador */}
-                <div className="rounded-2xl border border-white/10 bg-[#111419] p-5 sm:p-7">
-                    <label
-                        htmlFor="busqueda-productos"
-                        className="mb-3 block text-lg font-bold"
-                    >
-                        Buscar repuestos
-                    </label>
-
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                        <input
-                            id="busqueda-productos"
-                            type="search"
-                            value={busqueda}
-                            onChange={(e) => setBusqueda(e.target.value)}
-                            placeholder="Ej.: filtros, Bosch, frenos..."
-                            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#090b0e] px-4 py-3 text-white outline-none transition placeholder:text-gray-500 focus:border-red-600"
+                <div className="mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 lg:px-8">
+                    {/* Encabezado */}
+                    <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-[#181818] via-[#111111] to-[#0b0b0b] px-6 py-10 sm:px-10 sm:py-14">
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute -right-20 -top-28 h-80 w-80 rounded-full border border-red-500/[0.09]"
+                        />
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute -right-4 -top-12 h-48 w-48 rounded-full border border-red-500/[0.12]"
+                        />
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute -bottom-32 right-20 h-64 w-64 rounded-full bg-red-700/[0.08] blur-[90px]"
                         />
 
-                        <button
-                            onClick={() => setBusqueda(busqueda.trim())}
-                            className="rounded-lg bg-red-700 px-7 py-3 font-bold transition hover:bg-red-600"
-                        >
-                            Buscar
-                        </button>
-                    </div>
+                        <div className="relative max-w-2xl">
+                            <span className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/[0.06] px-3 py-1.5 text-xs font-semibold tracking-[0.18em] text-red-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                RPM AUTOMOTRIZ
+                            </span>
 
-                    {/* Filtros */}
-                    <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <div>
-                            <label
-                                htmlFor="filtro-categoria"
-                                className="mb-2 block text-sm text-gray-400"
-                            >
-                                Categoría
-                            </label>
+                            <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
+                                Encuentra el repuesto
+                                <br />
+                                <span className="text-red-500">que tu auto necesita.</span>
+                            </h1>
 
-                            <select
-                                id="filtro-categoria"
-                                value={categoria}
-                                onChange={(e) => setCategoria(e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-[#090b0e] px-4 py-3 text-white outline-none focus:border-red-600"
-                            >
-                                {categorias.map((item) => (
-                                    <option key={item} value={item}>
-                                        {item}
-                                    </option>
-                                ))}
-                            </select>
+                            <p className="mt-5 max-w-xl text-sm leading-7 text-zinc-400 sm:text-base">
+                                Explora nuestro catálogo, compara opciones y encuentra información de cada repuesto en
+                                un solo lugar.
+                            </p>
+
+                            <div className="mt-8 flex flex-wrap items-center gap-5 text-sm text-zinc-400">
+                                <span className="flex items-center gap-2">
+                                    <IconShoppingBag size={18} className="text-red-400" />
+                                    {loading ? "Cargando productos..." : `${products.length} productos`}
+                                </span>
+
+                                <span className="flex items-center gap-2">
+                                    <IconCar size={18} className="text-red-400" />
+                                    Repuestos automotrices
+                                </span>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Búsqueda y filtros */}
+                    <section className="mt-8">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                            <div className="relative min-w-0 flex-1">
+                                <IconSearch
+                                    size={20}
+                                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"
+                                />
+
+                                <input
+                                    type="search"
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    placeholder="Buscar por repuesto, marca, modelo o SKU..."
+                                    aria-label="Buscar productos"
+                                    className="h-13 w-full rounded-xl border border-white/10 bg-[#111111]/90 pl-12 pr-11 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-red-500/60 focus:ring-2 focus:ring-red-500/10"
+                                />
+
+                                {search && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearch("")}
+                                        aria-label="Limpiar búsqueda"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-white/5 hover:text-white"
+                                    >
+                                        <IconX size={17} />
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <label className="flex h-13 items-center gap-3 rounded-xl border border-white/10 bg-[#111111]/90 px-4 text-sm text-zinc-300">
+                                    <IconAdjustmentsHorizontal size={18} className="shrink-0 text-red-400" />
+                                    <select
+                                        value={selectedCategory}
+                                        onChange={e => setSelectedCategory(e.target.value)}
+                                        aria-label="Filtrar por categoría"
+                                        className="min-w-0 flex-1 bg-transparent outline-none"
+                                    >
+                                        {categories.map(category => (
+                                            <option key={category} value={category} className="bg-[#151515] text-white">
+                                                {category}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="flex h-13 items-center gap-3 rounded-xl border border-white/10 bg-[#111111]/90 px-4 text-sm text-zinc-300">
+                                    <span className="whitespace-nowrap">Ordenar por</span>
+                                    <select
+                                        value={sort}
+                                        onChange={e => setSort(e.target.value as SortOption)}
+                                        aria-label="Ordenar productos"
+                                        className="min-w-0 flex-1 bg-transparent outline-none"
+                                    >
+                                        <option value="name" className="bg-[#151515]">
+                                            Nombre
+                                        </option>
+                                        <option value="price-asc" className="bg-[#151515]">
+                                            Menor precio
+                                        </option>
+                                        <option value="price-desc" className="bg-[#151515]">
+                                            Mayor precio
+                                        </option>
+                                    </select>
+                                </label>
+                            </div>
                         </div>
 
-                        <div>
-                            <label
-                                htmlFor="filtro-marca"
-                                className="mb-2 block text-sm text-gray-400"
-                            >
-                                Marca
-                            </label>
+                        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-5">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <p className="text-sm text-zinc-400">
+                                    {loading ? "Buscando repuestos..." : `${filteredProducts.length} resultados`}
+                                </p>
 
-                            <select
-                                id="filtro-marca"
-                                value={marca}
-                                onChange={(e) => setMarca(e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-[#090b0e] px-4 py-3 text-white outline-none focus:border-red-600"
-                            >
-                                {marcas.map((item) => (
-                                    <option key={item} value={item}>
-                                        {item}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-400">
+                                    <input
+                                        type="checkbox"
+                                        checked={onlyAvailable}
+                                        onChange={e => setOnlyAvailable(e.target.checked)}
+                                        className="h-4 w-4 accent-red-500"
+                                    />
+                                    Solo disponibles
+                                </label>
+                            </div>
 
-                        <div>
-                            <label
-                                htmlFor="orden-precio"
-                                className="mb-2 block text-sm text-gray-400"
-                            >
-                                Ordenar por
-                            </label>
-
-                            <select
-                                id="orden-precio"
-                                value={orden}
-                                onChange={(e) => setOrden(e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-[#090b0e] px-4 py-3 text-white outline-none focus:border-red-600"
-                            >
-                                <option value="relevancia">Relevancia</option>
-                                <option value="menor">Precio: menor a mayor</option>
-                                <option value="mayor">Precio: mayor a menor</option>
-                                <option value="nombre">Nombre: A-Z</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={limpiarFiltros}
-                        className="mt-5 text-sm font-semibold text-red-400 transition hover:text-red-300"
-                    >
-                        Limpiar búsqueda y filtros
-                    </button>
-                </div>
-
-                {/* Resultados */}
-                <div className="mb-6 mt-10 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h2 className="text-2xl font-bold">
-                            Repuestos disponibles
-                        </h2>
-
-                        <p className="mt-1 text-sm text-gray-400">
-                            {resultados.length} producto(s) encontrado(s)
-                        </p>
-                    </div>
-
-                    <Link
-                        href="/carrito"
-                        className="text-sm font-semibold text-red-400 transition hover:text-red-300"
-                    >
-                        Ir al carrito ({carritoCargado ? totalUnidades : 0}) →
-                    </Link>
-                </div>
-
-                {/* Mensaje al agregar un producto */}
-                {mensaje && (
-                    <div
-                        role="status"
-                        className="mb-6 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400"
-                    >
-                        ✓ {mensaje}
-                    </div>
-                )}
-
-                {/* Tarjetas */}
-                {resultados.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {resultados.map((producto) => {
-                            const cantidadEnCarrito =
-                                carrito.find(
-                                    (item) => item.id === producto.id
-                                )?.quantity ?? 0;
-
-                            return (
-                                <article
-                                    key={producto.id}
-                                    className="group overflow-hidden rounded-2xl border border-white/10 bg-[#111419] transition duration-300 hover:-translate-y-1 hover:border-red-600/60"
+                            {hasFilters && (
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    className="text-sm font-medium text-red-400 transition hover:text-red-300"
                                 >
-                                    <div className="relative h-48 overflow-hidden bg-[#1a1f26]">
-                                        <img
-                                            src={producto.imagen}
-                                            alt={producto.nombre}
-                                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                                    Limpiar filtros
+                                </button>
+                            )}
+                        </div>
+                    </section>
+
+                    {/* Estado de error */}
+                    {error && (
+                        <section
+                            role="alert"
+                            className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/[0.06] p-6"
+                        >
+                            <div className="flex items-start gap-3">
+                                <IconAlertCircle size={22} className="shrink-0 text-red-400" />
+                                <div>
+                                    <h2 className="font-semibold text-white">No pudimos cargar el catálogo</h2>
+                                    <p className="mt-2 text-sm text-zinc-400">{error}</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => void loadProducts()}
+                                        className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold transition hover:bg-red-500"
+                                    >
+                                        Intentar nuevamente
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Cargando */}
+                    {loading && !error && (
+                        <section
+                            aria-label="Cargando productos"
+                            className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                        >
+                            {Array.from({ length: 8 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111]"
+                                >
+                                    <div className="h-52 animate-pulse bg-white/[0.035]" />
+                                    <div className="space-y-4 p-5">
+                                        <div className="h-3 w-1/3 animate-pulse rounded bg-white/[0.06]" />
+                                        <div className="h-5 w-4/5 animate-pulse rounded bg-white/[0.06]" />
+                                        <div className="h-4 w-1/2 animate-pulse rounded bg-white/[0.06]" />
+                                        <div className="h-9 w-2/3 animate-pulse rounded bg-white/[0.06]" />
+                                    </div>
+                                </div>
+                            ))}
+                        </section>
+                    )}
+
+                    {/* Productos */}
+                    {!loading && !error && filteredProducts.length > 0 && (
+                        <section
+                            aria-label="Lista de productos"
+                            className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                        >
+                            {filteredProducts.map(product => (
+                                <Link
+                                    key={product.id_product}
+                                    href={`/catalogo/${product.id_product}`}
+                                    aria-label={`Ver detalles de ${product.name}`}
+                                    className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-[#151515] to-[#0e0e0e] transition duration-300 hover:-translate-y-1 hover:border-red-500/40 hover:shadow-xl hover:shadow-red-950/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                >
+                                    {/* Imagen provisional hasta incorporar imágenes reales */}
+                                    <div className="relative flex h-52 items-center justify-center overflow-hidden border-b border-white/[0.06] bg-[radial-gradient(ellipse_at_center,rgba(127,29,29,0.12),transparent_70%)]">
+                                        <div
+                                            aria-hidden="true"
+                                            className="absolute inset-0 opacity-30"
+                                            style={{
+                                                backgroundImage:
+                                                    "linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)",
+                                                backgroundSize: "24px 24px",
+                                            }}
                                         />
 
-                                        <span className="absolute left-3 top-3 rounded-md bg-black/75 px-3 py-1 text-xs font-semibold text-red-400">
-                                            {producto.categoria}
+                                        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-white/[0.08] bg-[#151515]/90 text-zinc-500 transition duration-300 group-hover:scale-105 group-hover:border-red-500/30 group-hover:text-red-400">
+                                            <IconCar size={42} stroke={1.2} />
+                                        </div>
+
+                                        <span
+                                            className={`absolute left-4 top-4 rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+                                                product.stock > 0
+                                                    ? "border-emerald-500/20 bg-emerald-500/[0.08] text-emerald-400"
+                                                    : "border-red-500/20 bg-red-500/[0.08] text-red-400"
+                                            }`}
+                                        >
+                                            {product.stock > 0 ? "Disponible" : "Sin stock"}
+                                        </span>
+
+                                        <span className="absolute bottom-4 right-4 text-[10px] font-medium tracking-widest text-zinc-600">
+                                            {product.sku}
                                         </span>
                                     </div>
 
-                                    <div className="p-5">
-                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                                            {producto.marca}
-                                        </p>
+                                    {/* Datos de la tarjeta */}
+                                    <div className="flex flex-1 flex-col p-5">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium uppercase tracking-wider text-red-400">
+                                            {product.category?.name && <span>{product.category.name}</span>}
 
-                                        <h3 className="mt-2 min-h-14 text-lg font-bold leading-6">
-                                            {producto.nombre}
-                                        </h3>
-
-                                        <div className="mt-4 border-t border-white/10 pt-4">
-                                            <p className="text-xs text-gray-500">
-                                                Precio
-                                            </p>
-
-                                            <p className="mt-1 text-2xl font-black text-white">
-                                                {formatoPrecio(producto.precio)}
-                                            </p>
+                                            {product.brand?.name && (
+                                                <>
+                                                    <span className="text-zinc-700">/</span>
+                                                    <span className="text-zinc-400">{product.brand.name}</span>
+                                                </>
+                                            )}
                                         </div>
 
-                                        <button
-                                            onClick={() =>
-                                                agregarAlCarrito(producto.id)
-                                            }
-                                            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-3 font-bold transition hover:bg-red-600 active:scale-[0.98]"
-                                        >
-                                            <span>🛒</span>
-                                            Agregar al carrito
-                                        </button>
+                                        <h2 className="mt-3 line-clamp-2 min-h-12 text-base font-semibold leading-6 text-zinc-100 transition-colors group-hover:text-white">
+                                            {product.name}
+                                        </h2>
 
-                                        {cantidadEnCarrito > 0 && (
-                                            <p className="mt-3 text-center text-xs text-green-400">
-                                                {cantidadEnCarrito} unidad(es) en
-                                                tu carrito
+                                        <p className="mt-2 line-clamp-1 text-xs text-zinc-500">
+                                            Modelo: {product.model}
+                                        </p>
+
+                                        <p className="mt-4 line-clamp-2 min-h-10 text-sm leading-5 text-zinc-400">
+                                            {product.description || "Consulta los detalles de este repuesto."}
+                                        </p>
+
+                                        <div className="mt-auto flex items-end justify-between gap-3 border-t border-white/[0.07] pt-5">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+                                                    Precio
+                                                </p>
+                                                <p className="mt-1 truncate text-xl font-bold tracking-tight text-white">
+                                                    {formatPrice(product.price)}
+                                                </p>
+                                            </div>
+
+                                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-zinc-400 transition group-hover:border-red-500/30 group-hover:bg-red-600 group-hover:text-white">
+                                                <IconArrowRight size={20} />
+                                            </span>
+                                        </div>
+
+                                        {product.stock > 0 && (
+                                            <p className="mt-3 text-xs text-zinc-600">
+                                                {product.stock} unidades en stock
                                             </p>
                                         )}
                                     </div>
-                                </article>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="rounded-2xl border border-white/10 bg-[#111419] px-5 py-16 text-center">
-                        <p className="text-4xl">🔎</p>
+                                </Link>
+                            ))}
+                        </section>
+                    )}
 
-                        <h3 className="mt-4 text-xl font-bold">
-                            No encontramos productos
-                        </h3>
+                    {/* Sin resultados */}
+                    {!loading && !error && filteredProducts.length === 0 && (
+                        <section className="mt-8 flex flex-col items-center rounded-2xl border border-white/[0.08] bg-[#111111]/80 px-6 py-16 text-center">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-zinc-500">
+                                <IconSearch size={28} />
+                            </div>
 
-                        <p className="mt-2 text-gray-400">
-                            Prueba con otra búsqueda o cambia los filtros.
-                        </p>
+                            <h2 className="mt-5 text-xl font-semibold">No encontramos repuestos</h2>
 
-                        <button
-                            onClick={limpiarFiltros}
-                            className="mt-6 rounded-lg bg-red-700 px-6 py-3 font-bold transition hover:bg-red-600"
-                        >
-                            Limpiar filtros
-                        </button>
-                    </div>
-                )}
+                            <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
+                                {products.length === 0
+                                    ? "Todavía no hay productos para mostrar en el catálogo."
+                                    : "Prueba con otro término o cambia los filtros para encontrar lo que buscas."}
+                            </p>
 
-                {/* Pie */}
-                <div className="mt-14 rounded-xl border border-white/10 bg-[#111419] p-6 text-center">
-                    <p className="font-semibold">
-                        ¿No encuentras el repuesto que buscas?
-                    </p>
+                            {hasFilters && (
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    className="mt-6 rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:border-red-500/40 hover:bg-white/[0.03]"
+                                >
+                                    Limpiar filtros
+                                </button>
+                            )}
+                        </section>
+                    )}
 
-                    <p className="mt-2 text-sm text-gray-400">
-                        Explora nuestros talleres aliados o vuelve al inicio.
-                    </p>
-
-                    <div className="mt-5 flex flex-wrap justify-center gap-3">
-                        <Link
-                            href="/workshops"
-                            className="rounded-lg border border-white/15 px-5 py-3 font-semibold transition hover:border-red-500"
-                        >
-                            Talleres aliados
-                        </Link>
-
-                        <Link
-                            href="/"
-                            className="rounded-lg border border-white/15 px-5 py-3 font-semibold transition hover:border-red-500"
-                        >
-                            Inicio
-                        </Link>
-                    </div>
+                    {/* Pie del catálogo */}
+                    <footer className="mt-12 border-t border-white/[0.07] pt-6">
+                        <div className="flex flex-col gap-2 text-xs text-zinc-600 sm:flex-row sm:items-center sm:justify-between">
+                            <p>RPM · Repuestos automotrices</p>
+                            <p>Los precios y la disponibilidad dependen de los datos del catálogo.</p>
+                        </div>
+                    </footer>
                 </div>
-            </section>
+            </div>
         </main>
     );
 }

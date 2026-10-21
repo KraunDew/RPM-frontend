@@ -43,18 +43,44 @@ type CartItem = {
     cantidad?: number;
 };
 
-function normalizeUser(data: MeResponse): AuthUser | null {
-    const candidate = "info" in data ? data.info : "user" in data ? data.user : data;
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-    if (!candidate || typeof candidate !== "object") return null;
+function normalizeUser(data: unknown): AuthUser | null {
+    if (!isRecord(data)) return null;
+
+    let candidate: unknown = data;
+
+    if ("info" in data) {
+        candidate = data.info;
+    } else if ("user" in data) {
+        candidate = data.user;
+    }
+
+    if (!isRecord(candidate)) return null;
+
+    const firstName =
+        typeof candidate.firstName === "string"
+            ? candidate.firstName
+            : typeof candidate.first_name === "string"
+              ? candidate.first_name
+              : "";
+
+    const lastName =
+        typeof candidate.lastName === "string"
+            ? candidate.lastName
+            : typeof candidate.last_name === "string"
+              ? candidate.last_name
+              : "";
+
+    const role = typeof candidate.role === "string" ? candidate.role.trim().toUpperCase() : "";
 
     return {
-        ...candidate,
-        firstName: candidate.firstName ?? candidate.first_name ?? "",
-        lastName: candidate.lastName ?? candidate.last_name ?? "",
-        role: String(candidate.role ?? "")
-            .trim()
-            .toUpperCase(),
+        ...(candidate as AuthUser),
+        firstName,
+        lastName,
+        role,
     };
 }
 
@@ -200,7 +226,6 @@ function Header() {
                 aria-label="Navegación principal"
                 className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-5 sm:py-4 lg:gap-x-6 lg:px-8"
             >
-                {/* Logo */}
                 <Link href="/" aria-label="RPM, ir al inicio" className="flex min-w-0 shrink items-center">
                     <Image
                         src="/assets/logo.png"
@@ -212,7 +237,6 @@ function Header() {
                     />
                 </Link>
 
-                {/* Navegación de escritorio */}
                 <ul className="hidden flex-1 items-center justify-center gap-1 xl:flex">
                     {navigation.map(({ name, route, icon: Icon }) => {
                         const isActive = pathname === route;
@@ -236,7 +260,6 @@ function Header() {
                     })}
                 </ul>
 
-                {/* Acciones: siempre en una sola fila */}
                 <div className="ml-auto flex shrink-0 items-center gap-1 min-[380px]:gap-1.5 sm:gap-2">
                     <Link
                         href="/carrito"
@@ -250,7 +273,6 @@ function Header() {
                     >
                         <span className="relative inline-flex">
                             <IconShoppingCart size={22} stroke={1.8} />
-
                             {cartCount > 0 && (
                                 <span
                                     aria-hidden="true"
@@ -277,7 +299,6 @@ function Header() {
                         <span className="hidden text-sm font-semibold 2xl:inline">Favoritos</span>
                     </Link>
 
-                    {/* Sesión */}
                     {loadingUser ? (
                         <div
                             aria-label="Consultando sesión"
@@ -325,19 +346,16 @@ function Header() {
                                         <p className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
                                             Mi cuenta
                                         </p>
-
                                         <Link href="/perfil" className={linkClass("/perfil")}>
                                             <IconUserCircle size={19} />
                                             <span>Mi perfil</span>
                                             <IconChevronRight size={15} className="ml-auto text-white/25" />
                                         </Link>
-
                                         <Link href="/mis-pedidos" className={linkClass("/mis-pedidos")}>
                                             <IconPackage size={19} />
                                             <span>Mis pedidos</span>
                                             <IconChevronRight size={15} className="ml-auto text-white/25" />
                                         </Link>
-
                                         <Link href="/direcciones" className={linkClass("/direcciones")}>
                                             <IconMapPin size={19} />
                                             <span>Mis direcciones</span>
@@ -383,7 +401,6 @@ function Header() {
                         </Link>
                     )}
 
-                    {/* Menú móvil y tablet */}
                     <button
                         type="button"
                         aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
@@ -396,7 +413,6 @@ function Header() {
                     </button>
                 </div>
 
-                {/* Navegación móvil y tablet */}
                 {mobileMenuOpen && (
                     <div
                         id="rpm-mobile-navigation"
@@ -440,7 +456,6 @@ function Header() {
                                 <IconShoppingCart size={19} />
                                 Carrito ({cartCount > 99 ? "99+" : cartCount})
                             </Link>
-
                             <Link
                                 href="/favoritos"
                                 onClick={() => setMobileMenuOpen(false)}
@@ -456,12 +471,10 @@ function Header() {
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-950/70 text-sm font-bold text-red-300">
                                     {initials}
                                 </div>
-
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-sm font-semibold">{fullName}</p>
                                     <p className="truncate text-xs text-white/45">{roleLabel}</p>
                                 </div>
-
                                 <Link
                                     href="/perfil"
                                     onClick={() => setMobileMenuOpen(false)}

@@ -24,7 +24,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./motion/popover";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
+const API_URL = process.env.BACKEND?.replace(/\/+$/, "");
 const CART_KEY = "rpm-carrito";
 
 type AuthUser = User & {
@@ -113,7 +113,7 @@ function Header() {
 
     const fetchUser = useCallback(async () => {
         if (!API_URL) {
-            console.error("Falta configurar NEXT_PUBLIC_BACKEND.");
+            console.error("Falta configurar BACKEND.");
             setUser(null);
             setLoadingUser(false);
             return;

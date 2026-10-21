@@ -17,7 +17,7 @@ import {
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
+const API_URL = process.env.BACKEND?.replace(/\/+$/, "");
 const DPA_API = "https://apis.digital.gob.cl/dpa";
 
 type Region = {
@@ -188,7 +188,7 @@ export default function ProveedoresPage() {
 
     const loadSuppliers = useCallback(async () => {
         if (!API_URL) {
-            setError("Falta configurar NEXT_PUBLIC_BACKEND en .env.local.");
+            setError("Falta configurar BACKEND en .env.local.");
             setLoading(false);
             return;
         }
@@ -369,7 +369,7 @@ export default function ProveedoresPage() {
         event.preventDefault();
 
         if (!API_URL) {
-            setError("Falta configurar NEXT_PUBLIC_BACKEND en .env.local.");
+            setError("Falta configurar BACKEND en .env.local.");
             return;
         }
 
@@ -441,7 +441,7 @@ export default function ProveedoresPage() {
         if (!confirmed) return;
 
         if (!API_URL) {
-            setError("Falta configurar NEXT_PUBLIC_BACKEND en .env.local.");
+            setError("Falta configurar BACKEND en .env.local.");
             return;
         }
 

@@ -3,7 +3,7 @@
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND ?? "http://localhost:3000";
+const API_URL = process.env.BACKEND ?? "http://localhost:3000";
 
 type UserRole = "USER" | "SUPPLIER" | "ADMIN" | "SUPERADMIN";
 

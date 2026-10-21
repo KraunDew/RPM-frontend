@@ -14,7 +14,7 @@ import {
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
+const API_URL = process.env.BACKEND?.replace(/\/+$/, "");
 
 type Category = {
     id_category: string;
@@ -126,7 +126,7 @@ export default function AdminProductsPage() {
 
     const loadProducts = useCallback(async () => {
         if (!API_URL) {
-            setError("Falta configurar NEXT_PUBLIC_BACKEND en .env.local.");
+            setError("Falta configurar BACKEND en .env.local.");
             setLoading(false);
             return;
         }
@@ -233,7 +233,7 @@ export default function AdminProductsPage() {
 
     async function handleDeleteProduct(product: Product) {
         if (!API_URL) {
-            setError("Falta configurar NEXT_PUBLIC_BACKEND.");
+            setError("Falta configurar BACKEND.");
             return;
         }
 
@@ -267,7 +267,7 @@ export default function AdminProductsPage() {
         setNotice("");
 
         if (!API_URL) {
-            setFormError("Falta configurar NEXT_PUBLIC_BACKEND.");
+            setFormError("Falta configurar BACKEND.");
             return;
         }
 

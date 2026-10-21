@@ -43,7 +43,7 @@ export default function LoginPage() {
             return;
         }
 
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND;
+        const backendUrl = process.env.BACKEND;
 
         if (!backendUrl) {
             setError("No pudimos iniciar sesión. Inténtalo más tarde.");

@@ -52,10 +52,10 @@ export default function ProductPage() {
     useEffect(() => {
         async function loadProduct() {
             try {
-                const backend = process.env.NEXT_PUBLIC_BACKEND;
+                const backend = process.env.BACKEND;
 
                 if (!backend) {
-                    throw new Error("Falta configurar NEXT_PUBLIC_BACKEND");
+                    throw new Error("Falta configurar BACKEND");
                 }
 
                 const response = await fetch(`${backend.replace(/\/+$/, "")}/products/${encodeURIComponent(id)}`, {

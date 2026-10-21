@@ -74,7 +74,7 @@ export default function Page() {
     useEffect(() => {
         async function loadProducts() {
             try {
-                const backend = process.env.NEXT_PUBLIC_BACKEND;
+                const backend = process.env.BACKEND;
 
                 if (!backend) {
                     setApiError(true);
@@ -504,7 +504,7 @@ export default function Page() {
                             </h3>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">
                                 {apiError
-                                    ? "Revisa que el backend esté funcionando y que NEXT_PUBLIC_BACKEND esté configurada correctamente."
+                                    ? "Revisa que el backend esté funcionando y que BACKEND esté configurada correctamente."
                                     : "Cuando haya productos disponibles en RPM, aparecerán en esta sección."}
                             </p>
                             <Link

@@ -48,7 +48,7 @@ export default function CatalogPage() {
     const [error, setError] = useState("");
 
     const loadProducts = useCallback(async () => {
-        const backend = process.env.NEXT_PUBLIC_BACKEND;
+        const backend = process.env.BACKEND;
 
         if (!backend) {
             setError("No pudimos cargar el catálogo. Inténtalo más tarde.");

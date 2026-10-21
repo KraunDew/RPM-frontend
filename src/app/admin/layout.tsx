@@ -19,7 +19,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
+const API_URL = process.env.BACKEND?.replace(/\/+$/, "");
 
 const navigation = [
     {
@@ -60,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         async function verifyAccess() {
             if (!API_URL) {
-                console.error("Falta configurar NEXT_PUBLIC_BACKEND.");
+                console.error("Falta configurar BACKEND.");
                 router.replace("/login");
                 if (active) setCheckingAccess(false);
                 return;

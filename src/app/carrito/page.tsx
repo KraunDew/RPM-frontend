@@ -42,7 +42,7 @@ type ProductoAPI = {
 };
 
 const STORAGE_KEY = "rpm-carrito";
-const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/$/, "");
+const API_URL = process.env.BACKEND?.replace(/\/$/, "");
 
 const formatoPrecio = (precio: number) =>
     new Intl.NumberFormat("es-CL", {
@@ -220,7 +220,7 @@ export default function CarritoPage() {
         if (carrito.length === 0 || validando) return;
 
         if (!API_URL) {
-            setMensaje("Falta configurar NEXT_PUBLIC_BACKEND en las variables de entorno.");
+            setMensaje("Falta configurar BACKEND en las variables de entorno.");
             setTipoMensaje("error");
             return;
         }

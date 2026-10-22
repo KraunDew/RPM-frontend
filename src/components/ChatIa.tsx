@@ -69,7 +69,7 @@ const formatCLP = (amount: number): string =>
     }).format(amount);
 
 const getApiBaseUrl = (): string => {
-    const configuredUrl = process.env.BACKEND?.trim();
+    const configuredUrl = process.env.NEXT_PUBLIC_BACKEND?.trim();
     return (configuredUrl || "http://localhost:3000").replace(/\/+$/, "");
 };
 

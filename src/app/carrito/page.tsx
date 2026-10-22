@@ -42,7 +42,7 @@ type ProductoAPI = {
 };
 
 const STORAGE_KEY = "rpm-carrito";
-const API_URL = process.env.BACKEND?.replace(/\/$/, "");
+const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/$/, "");
 
 const formatoPrecio = (precio: number) =>
     new Intl.NumberFormat("es-CL", {

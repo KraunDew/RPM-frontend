@@ -14,7 +14,7 @@ import {
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const API_URL = process.env.BACKEND;
+const API_URL = process.env.NEXT_PUBLIC_BACKEND;
 
 type Category = {
     id_category: string;

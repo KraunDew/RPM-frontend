@@ -151,7 +151,7 @@ export default function RegisterPage() {
             return;
         }
 
-        const backendUrl = process.env.BACKEND;
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND;
 
         if (!backendUrl) {
             setError("No pudimos completar el registro. Inténtalo más tarde.");

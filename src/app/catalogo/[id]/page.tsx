@@ -52,7 +52,7 @@ export default function ProductPage() {
     useEffect(() => {
         async function loadProduct() {
             try {
-                const backend = process.env.BACKEND;
+                const backend = process.env.NEXT_PUBLIC_BACKEND;
 
                 if (!backend) {
                     throw new Error("Falta configurar BACKEND");

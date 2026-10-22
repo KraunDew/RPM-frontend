@@ -74,7 +74,7 @@ export default function Page() {
     useEffect(() => {
         async function loadProducts() {
             try {
-                const backend = process.env.BACKEND;
+                const backend = process.env.NEXT_PUBLIC_BACKEND;
 
                 if (!backend) {
                     setApiError(true);

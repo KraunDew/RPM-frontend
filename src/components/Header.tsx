@@ -24,7 +24,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./motion/popover";
 
-const API_URL = process.env.BACKEND?.replace(/\/+$/, "");
+const API_URL = process.env.BACKEND;
 const CART_KEY = "rpm-carrito";
 
 type AuthUser = User & {

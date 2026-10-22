@@ -19,7 +19,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const API_URL = process.env.BACKEND?.replace(/\/+$/, "");
+const API_URL = process.env.BACKEND;
 
 const navigation = [
     {

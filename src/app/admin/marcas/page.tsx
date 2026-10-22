@@ -15,7 +15,7 @@ import {
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const API_URL = process.env.BACKEND?.replace(/\/+$/, "");
+const API_URL = process.env.BACKEND;
 
 type Brand = {
     id_brand: string;

@@ -42,6 +42,7 @@ type Product = {
     description?: string | null;
     price: number | string;
     stock: number;
+    photo_path?: string | null;
     id_category?: string;
     id_brand?: string;
     id_supplier?: string;
@@ -77,6 +78,18 @@ const EMPTY_FORM: ProductForm = {
     id_brand: "",
     id_supplier: "",
 };
+
+function getPhotoUrl(photoPath?: string | null): string | null {
+    if (!photoPath || !API_URL) return null;
+    if (/^https?:\/\//i.test(photoPath)) return photoPath;
+
+    let path = photoPath.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "");
+    const publicIndex = path.indexOf("public/photos/");
+    if (publicIndex >= 0) path = path.slice(publicIndex);
+    else if (!path.startsWith("public/")) path = `public/${path}`;
+
+    return `${API_URL.replace(/\/+$/, "")}/${path}`;
+}
 
 const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("es-CL", {
@@ -165,6 +178,7 @@ export default function AdminProductsPage() {
     const [formError, setFormError] = useState("");
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [removeCurrentPhoto, setRemoveCurrentPhoto] = useState(false);
 
     const loadProducts = useCallback(async () => {
         if (!API_URL) {
@@ -253,6 +267,7 @@ export default function AdminProductsPage() {
         setFormError("");
         setSelectedPhoto(null);
         setPhotoPreview(null);
+        setRemoveCurrentPhoto(false);
         setNotice("");
         setModalOpen(true);
     }
@@ -275,6 +290,7 @@ export default function AdminProductsPage() {
         setFormError("");
         setSelectedPhoto(null);
         setPhotoPreview(null);
+        setRemoveCurrentPhoto(false);
         setNotice("");
         setModalOpen(true);
     }
@@ -320,6 +336,7 @@ export default function AdminProductsPage() {
         setFormError("");
         setSelectedPhoto(null);
         setPhotoPreview(null);
+        setRemoveCurrentPhoto(false);
 
         if (!file.type.startsWith("image/")) {
             setFormError("Selecciona una imagen JPG, PNG o WEBP.");
@@ -399,16 +416,30 @@ export default function AdminProductsPage() {
         setSaving(true);
 
         try {
+            const formData = new FormData();
+            formData.append("data", JSON.stringify(payload));
+            if (selectedPhoto) formData.append("photo", selectedPhoto, selectedPhoto.name);
+
             if (editingProduct) {
-                await axios.patch(`${API_URL}/products/${editingProduct.id_product}`, payload, {
+                if (removeCurrentPhoto && selectedPhoto) {
+                    setFormError("Elige entre reemplazar la foto o eliminarla, no ambas cosas a la vez.");
+                    setSaving(false);
+                    return;
+                }
+                if (removeCurrentPhoto) formData.append("removePhoto", "true");
+
+                // El PATCH recibe multipart/form-data: data (JSON), photo opcional y removePhoto opcional.
+                await axios.patch(`${API_URL}/products/${editingProduct.id_product}`, formData, {
                     withCredentials: true,
                 });
-                setNotice("Producto actualizado correctamente.");
+                setNotice(
+                    removeCurrentPhoto
+                        ? "Producto actualizado y foto eliminada correctamente."
+                        : selectedPhoto
+                          ? "Producto actualizado y foto reemplazada correctamente."
+                          : "Producto actualizado correctamente.",
+                );
             } else {
-                const formData = new FormData();
-                formData.append("data", JSON.stringify(payload));
-                if (selectedPhoto) formData.append("photo", selectedPhoto, selectedPhoto.name);
-
                 // No fijes Content-Type manualmente: el navegador agrega el boundary de multipart.
                 await axios.post(`${API_URL}/products`, formData, {
                     withCredentials: true,
@@ -418,6 +449,7 @@ export default function AdminProductsPage() {
             if (photoPreview) URL.revokeObjectURL(photoPreview);
             setSelectedPhoto(null);
             setPhotoPreview(null);
+            setRemoveCurrentPhoto(false);
 
             setModalOpen(false);
             await loadProducts();
@@ -550,8 +582,20 @@ export default function AdminProductsPage() {
                                     <tr key={product.id_product} className="transition hover:bg-white/[0.025]">
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-zinc-400">
-                                                    <IconPackage size={19} />
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.03] text-zinc-400">
+                                                    {getPhotoUrl(product.photo_path) ? (
+                                                        <img
+                                                            src={getPhotoUrl(product.photo_path)!}
+                                                            alt={`Foto de ${product.name}`}
+                                                            loading="lazy"
+                                                            onError={event => {
+                                                                event.currentTarget.style.display = "none";
+                                                            }}
+                                                            className="h-full w-full object-contain"
+                                                        />
+                                                    ) : (
+                                                        <IconPackage size={19} />
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <p className="font-medium text-zinc-100">{product.name}</p>
@@ -768,60 +812,126 @@ export default function AdminProductsPage() {
                                     />
                                 </Field>
 
-                                {!editingProduct && (
-                                    <div className="sm:col-span-2">
-                                        <Field label="Foto del producto (se convertirá a JPEG)" required>
-                                            <div className="space-y-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4">
-                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                                    <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-red-500/40 hover:bg-white/[0.03]">
-                                                        <IconPhoto size={18} />
-                                                        Seleccionar imagen
-                                                        <input
-                                                            type="file"
-                                                            accept="image/jpeg,image/png,image/webp,image/avif,image/*"
-                                                            onChange={handlePhotoChange}
-                                                            className="sr-only"
-                                                        />
-                                                    </label>
-                                                    <p className="text-xs leading-5 text-zinc-500">
-                                                        JPG, PNG o WEBP. Máximo 15 MB original. Se redimensiona a 1600
-                                                        px y se comprime al 82%.
-                                                    </p>
-                                                </div>
-                                                {photoPreview && selectedPhoto && (
+                                <div className="sm:col-span-2">
+                                    <Field
+                                        label={
+                                            editingProduct
+                                                ? "Foto del producto"
+                                                : "Foto del producto (se convertirá a JPEG)"
+                                        }
+                                        required={!editingProduct}
+                                    >
+                                        <div className="space-y-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4">
+                                            {editingProduct &&
+                                                !selectedPhoto &&
+                                                !removeCurrentPhoto &&
+                                                editingProduct.photo_path && (
                                                     <div className="flex items-center gap-4 rounded-lg border border-white/[0.08] bg-black/20 p-3">
                                                         <img
-                                                            src={photoPreview}
-                                                            alt="Vista previa de la foto comprimida"
+                                                            src={getPhotoUrl(editingProduct.photo_path) ?? ""}
+                                                            alt={`Foto actual de ${editingProduct.name}`}
                                                             className="h-20 w-20 rounded-lg border border-white/10 object-contain"
+                                                            onError={event => {
+                                                                event.currentTarget.style.display = "none";
+                                                            }}
                                                         />
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-sm font-medium text-zinc-200">
-                                                                {selectedPhoto.name}
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-zinc-200">
+                                                                Foto actual
                                                             </p>
-                                                            <p className="mt-1 text-xs text-emerald-400">
-                                                                JPEG listo para subir ·{" "}
-                                                                {(selectedPhoto.size / 1024).toFixed(0)} KB
+                                                            <p className="mt-1 text-xs text-zinc-500">
+                                                                Puedes conservarla, reemplazarla o eliminarla.
                                                             </p>
                                                         </div>
                                                         <button
                                                             type="button"
-                                                            onClick={() => {
-                                                                URL.revokeObjectURL(photoPreview);
-                                                                setPhotoPreview(null);
-                                                                setSelectedPhoto(null);
-                                                            }}
-                                                            className="ml-auto rounded-lg p-2 text-zinc-400 hover:bg-white/5 hover:text-white"
-                                                            aria-label="Quitar foto"
+                                                            onClick={() => setRemoveCurrentPhoto(true)}
+                                                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-500/20 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10"
                                                         >
-                                                            <IconX size={18} />
+                                                            <IconTrash size={15} />
+                                                            Eliminar foto
                                                         </button>
                                                     </div>
                                                 )}
+
+                                            {editingProduct && removeCurrentPhoto && (
+                                                <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-3">
+                                                    <p className="text-sm text-amber-300">
+                                                        La foto se eliminará al guardar los cambios.
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setRemoveCurrentPhoto(false)}
+                                                        className="text-xs font-semibold text-zinc-300 underline underline-offset-4"
+                                                    >
+                                                        Deshacer
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {editingProduct &&
+                                                !editingProduct.photo_path &&
+                                                !selectedPhoto &&
+                                                !removeCurrentPhoto && (
+                                                    <p className="text-sm text-zinc-500">
+                                                        Este producto no tiene una foto guardada.
+                                                    </p>
+                                                )}
+
+                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                                <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-red-500/40 hover:bg-white/[0.03]">
+                                                    <IconPhoto size={18} />
+                                                    {selectedPhoto
+                                                        ? "Elegir otra imagen"
+                                                        : editingProduct
+                                                          ? "Cambiar foto"
+                                                          : "Seleccionar imagen"}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/jpeg,image/png,image/webp,image/avif,image/*"
+                                                        onChange={handlePhotoChange}
+                                                        className="sr-only"
+                                                    />
+                                                </label>
+                                                <p className="text-xs leading-5 text-zinc-500">
+                                                    JPG, PNG o WEBP. Máximo 15 MB original. Se redimensiona a 1600 px y
+                                                    se comprime al 82% en JPEG.
+                                                </p>
                                             </div>
-                                        </Field>
-                                    </div>
-                                )}
+
+                                            {photoPreview && selectedPhoto && (
+                                                <div className="flex items-center gap-4 rounded-lg border border-white/[0.08] bg-black/20 p-3">
+                                                    <img
+                                                        src={photoPreview}
+                                                        alt="Vista previa de la nueva foto comprimida"
+                                                        className="h-20 w-20 rounded-lg border border-white/10 object-contain"
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-sm font-medium text-zinc-200">
+                                                            {selectedPhoto.name}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-emerald-400">
+                                                            JPEG listo para subir ·{" "}
+                                                            {(selectedPhoto.size / 1024).toFixed(0)} KB
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            URL.revokeObjectURL(photoPreview);
+                                                            setPhotoPreview(null);
+                                                            setSelectedPhoto(null);
+                                                        }}
+                                                        className="ml-auto rounded-lg p-2 text-zinc-400 hover:bg-white/5 hover:text-white"
+                                                        aria-label="Quitar foto seleccionada"
+                                                    >
+                                                        <IconX size={18} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Field>
+                                </div>
 
                                 <div className="sm:col-span-2">
                                     <Field label="Descripción">

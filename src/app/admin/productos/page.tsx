@@ -5,6 +5,7 @@ import {
     IconCheck,
     IconEdit,
     IconPackage,
+    IconPhoto,
     IconPlus,
     IconRefresh,
     IconSearch,
@@ -106,6 +107,45 @@ function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : "Ocurrió un error inesperado.";
 }
 
+/** Convierte imágenes a JPEG, limita su lado mayor a 1600 px y comprime al 82%. */
+async function compressImageToJpeg(file: File): Promise<File> {
+    if (!file.type.startsWith("image/")) {
+        throw new Error("Selecciona un archivo de imagen válido.");
+    }
+
+    const bitmap = await createImageBitmap(file);
+    const maxDimension = 1600;
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+        bitmap.close();
+        throw new Error("No se pudo procesar la imagen en este navegador.");
+    }
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+            result => (result ? resolve(result) : reject(new Error("No se pudo convertir la imagen a JPEG."))),
+            "image/jpeg",
+            0.82,
+        );
+    });
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "producto";
+    return new File([blob], `${baseName}.jpg`, {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+    });
+}
+
 export default function AdminProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -123,6 +163,8 @@ export default function AdminProductsPage() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
     const [formError, setFormError] = useState("");
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
     const loadProducts = useCallback(async () => {
         if (!API_URL) {
@@ -180,6 +222,12 @@ export default function AdminProductsPage() {
         void loadOptions();
     }, [loadProducts, loadOptions]);
 
+    useEffect(() => {
+        return () => {
+            if (photoPreview) URL.revokeObjectURL(photoPreview);
+        };
+    }, [photoPreview]);
+
     const filteredProducts = useMemo(() => {
         const term = search.trim().toLowerCase();
 
@@ -203,6 +251,8 @@ export default function AdminProductsPage() {
         setEditingProduct(null);
         setForm(EMPTY_FORM);
         setFormError("");
+        setSelectedPhoto(null);
+        setPhotoPreview(null);
         setNotice("");
         setModalOpen(true);
     }
@@ -223,6 +273,8 @@ export default function AdminProductsPage() {
             id_supplier: product.id_supplier ?? product.supplier?.id_supplier ?? "",
         });
         setFormError("");
+        setSelectedPhoto(null);
+        setPhotoPreview(null);
         setNotice("");
         setModalOpen(true);
     }
@@ -261,6 +313,36 @@ export default function AdminProductsPage() {
         }
     }
 
+    async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setFormError("");
+        setSelectedPhoto(null);
+        setPhotoPreview(null);
+
+        if (!file.type.startsWith("image/")) {
+            setFormError("Selecciona una imagen JPG, PNG o WEBP.");
+            event.target.value = "";
+            return;
+        }
+
+        if (file.size > 15 * 1024 * 1024) {
+            setFormError("La imagen original no puede superar los 15 MB.");
+            event.target.value = "";
+            return;
+        }
+
+        try {
+            const compressed = await compressImageToJpeg(file);
+            setSelectedPhoto(compressed);
+            setPhotoPreview(URL.createObjectURL(compressed));
+        } catch (err) {
+            setFormError(err instanceof Error ? err.message : "No se pudo procesar la imagen.");
+            event.target.value = "";
+        }
+    }
+
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setFormError("");
@@ -268,6 +350,11 @@ export default function AdminProductsPage() {
 
         if (!API_URL) {
             setFormError("Falta configurar BACKEND.");
+            return;
+        }
+
+        if (!editingProduct && !selectedPhoto) {
+            setFormError("Selecciona una foto para el producto. La imagen se convertirá a JPEG automáticamente.");
             return;
         }
 
@@ -318,11 +405,19 @@ export default function AdminProductsPage() {
                 });
                 setNotice("Producto actualizado correctamente.");
             } else {
-                await axios.post(`${API_URL}/products`, payload, {
+                const formData = new FormData();
+                formData.append("data", JSON.stringify(payload));
+                if (selectedPhoto) formData.append("photo", selectedPhoto, selectedPhoto.name);
+
+                // No fijes Content-Type manualmente: el navegador agrega el boundary de multipart.
+                await axios.post(`${API_URL}/products`, formData, {
                     withCredentials: true,
                 });
-                setNotice("Producto creado correctamente.");
+                setNotice("Producto creado correctamente. La foto se envió comprimida en JPEG.");
             }
+            if (photoPreview) URL.revokeObjectURL(photoPreview);
+            setSelectedPhoto(null);
+            setPhotoPreview(null);
 
             setModalOpen(false);
             await loadProducts();
@@ -672,6 +767,61 @@ export default function AdminProductsPage() {
                                         placeholder="Ej. 1.250"
                                     />
                                 </Field>
+
+                                {!editingProduct && (
+                                    <div className="sm:col-span-2">
+                                        <Field label="Foto del producto (se convertirá a JPEG)" required>
+                                            <div className="space-y-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4">
+                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                                    <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:border-red-500/40 hover:bg-white/[0.03]">
+                                                        <IconPhoto size={18} />
+                                                        Seleccionar imagen
+                                                        <input
+                                                            type="file"
+                                                            accept="image/jpeg,image/png,image/webp,image/avif,image/*"
+                                                            onChange={handlePhotoChange}
+                                                            className="sr-only"
+                                                        />
+                                                    </label>
+                                                    <p className="text-xs leading-5 text-zinc-500">
+                                                        JPG, PNG o WEBP. Máximo 15 MB original. Se redimensiona a 1600
+                                                        px y se comprime al 82%.
+                                                    </p>
+                                                </div>
+                                                {photoPreview && selectedPhoto && (
+                                                    <div className="flex items-center gap-4 rounded-lg border border-white/[0.08] bg-black/20 p-3">
+                                                        <img
+                                                            src={photoPreview}
+                                                            alt="Vista previa de la foto comprimida"
+                                                            className="h-20 w-20 rounded-lg border border-white/10 object-contain"
+                                                        />
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-sm font-medium text-zinc-200">
+                                                                {selectedPhoto.name}
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-emerald-400">
+                                                                JPEG listo para subir ·{" "}
+                                                                {(selectedPhoto.size / 1024).toFixed(0)} KB
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                URL.revokeObjectURL(photoPreview);
+                                                                setPhotoPreview(null);
+                                                                setSelectedPhoto(null);
+                                                            }}
+                                                            className="ml-auto rounded-lg p-2 text-zinc-400 hover:bg-white/5 hover:text-white"
+                                                            aria-label="Quitar foto"
+                                                        >
+                                                            <IconX size={18} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </Field>
+                                    </div>
+                                )}
 
                                 <div className="sm:col-span-2">
                                     <Field label="Descripción">

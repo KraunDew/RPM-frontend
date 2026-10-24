@@ -26,9 +26,13 @@ type Product = {
     price: number;
     stock: number;
     description?: string | null;
-    category?: { name: string };
-    brand?: { name: string };
+    photo_path?: string | null;
+    image?: string | null;
+    category?: { name: string } | null;
+    brand?: { name: string } | null;
 };
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
 
 const categories = [
     {
@@ -65,57 +69,100 @@ function formatPrice(price: number) {
     }).format(price);
 }
 
+function getProductImage(product: Product): string {
+    const path = product.photo_path || product.image;
+
+    if (!path?.trim() || !BACKEND_URL) return "";
+
+    const value = path.trim();
+
+    if (/^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    const normalizedPath = value.replace(/\\/g, "/");
+    const publicMatch = normalizedPath.match(/(?:^|\/)public\/(.+)$/);
+
+    if (publicMatch?.[1]) {
+        return `${BACKEND_URL}/public/${publicMatch[1].split("/").map(encodeURIComponent).join("/")}`;
+    }
+
+    return `${BACKEND_URL}/public/${normalizedPath.replace(/^\/+/, "").split("/").map(encodeURIComponent).join("/")}`;
+}
+
 export default function Page() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [apiError, setApiError] = useState(false);
+    const [failedImages, setFailedImages] = useState<string[]>([]);
 
     useEffect(() => {
+        let cancelled = false;
+
         async function loadProducts() {
             try {
-                const backend = process.env.NEXT_PUBLIC_BACKEND;
-
-                if (!backend) {
-                    setApiError(true);
-                    return;
+                if (!BACKEND_URL) {
+                    throw new Error("Falta configurar NEXT_PUBLIC_BACKEND.");
                 }
 
-                const response = await fetch(`${backend}/products`, { cache: "no-store" });
+                const response = await fetch(`${BACKEND_URL}/products`, {
+                    cache: "no-store",
+                });
 
-                if (!response.ok) throw new Error("No se pudieron cargar los productos");
+                if (!response.ok) {
+                    throw new Error("No se pudieron cargar los productos.");
+                }
 
                 const data = await response.json();
-                const list = Array.isArray(data)
+
+                const list: Product[] = Array.isArray(data)
                     ? data
-                    : Array.isArray(data.data)
+                    : Array.isArray(data?.data)
                       ? data.data
-                      : Array.isArray(data.products)
+                      : Array.isArray(data?.products)
                         ? data.products
                         : [];
 
-                setProducts(list.slice(0, 4));
+                if (!cancelled) {
+                    setProducts(list.slice(0, 4));
+                    setApiError(false);
+                }
             } catch (error) {
                 console.error("Error cargando productos:", error);
-                setApiError(true);
+
+                if (!cancelled) {
+                    setApiError(true);
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         }
 
-        loadProducts();
+        void loadProducts();
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     function searchProducts(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const query = search.trim();
+
         if (!query) {
             window.location.href = "/catalogo";
             return;
         }
 
         window.location.href = `/catalogo?search=${encodeURIComponent(query)}`;
+    }
+
+    function markImageAsFailed(id: string) {
+        setFailedImages(previous => (previous.includes(id) ? previous : [...previous, id]));
     }
 
     return (
@@ -446,53 +493,73 @@ export default function Page() {
                         </div>
                     ) : products.length > 0 ? (
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {products.map(product => (
-                                <article
-                                    key={product.id_product}
-                                    className="group overflow-hidden rounded-2xl border border-white/[0.08] bg-[#121212] transition duration-300 hover:-translate-y-1 hover:border-red-500/30"
-                                >
-                                    <Link href={`/catalogo/${product.id_product}`} className="block">
-                                        <div className="relative flex h-44 items-center justify-center overflow-hidden border-b border-white/[0.06] bg-gradient-to-br from-[#1c1c1c] to-[#0c0c0c]">
-                                            <div className="absolute h-28 w-28 rounded-full bg-red-600/[0.05] blur-2xl transition group-hover:bg-red-600/[0.12]" />
-                                            <IconTool
-                                                size={48}
-                                                stroke={1}
-                                                className="relative text-zinc-700 transition duration-300 group-hover:scale-110 group-hover:text-red-400/80"
-                                            />
-                                            <span
-                                                className={`absolute right-3 top-3 rounded-full border px-2.5 py-1 text-[10px] font-medium ${
-                                                    product.stock > 0
-                                                        ? "border-emerald-500/20 bg-emerald-500/[0.07] text-emerald-400"
-                                                        : "border-red-500/20 bg-red-500/[0.07] text-red-400"
-                                                }`}
-                                            >
-                                                {product.stock > 0 ? "Disponible" : "Sin stock"}
-                                            </span>
-                                        </div>
+                            {products.map(product => {
+                                const imageUrl = getProductImage(product);
+                                const imageFailed = !imageUrl || failedImages.includes(product.id_product);
 
-                                        <div className="p-5">
-                                            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-red-400">
-                                                {product.brand?.name ?? "RPM"}
-                                                {product.category?.name ? ` / ${product.category.name}` : ""}
-                                            </p>
-                                            <h3 className="mt-3 line-clamp-2 min-h-12 text-sm font-semibold leading-6 text-zinc-200 transition group-hover:text-white">
-                                                {product.name}
-                                            </h3>
-                                            <p className="mt-1 truncate text-xs text-zinc-500">
-                                                {product.model || product.sku}
-                                            </p>
-                                            <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
-                                                <span className="text-base font-bold">
-                                                    {formatPrice(product.price)}
-                                                </span>
-                                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-zinc-400 transition group-hover:bg-red-600 group-hover:text-white">
-                                                    <IconArrowUpRight size={19} />
+                                return (
+                                    <article
+                                        key={product.id_product}
+                                        className="group overflow-hidden rounded-2xl border border-white/[0.08] bg-[#121212] transition duration-300 hover:-translate-y-1 hover:border-red-500/30"
+                                    >
+                                        <Link href={`/catalogo/${product.id_product}`} className="block">
+                                            <div className="relative flex h-44 items-center justify-center overflow-hidden border-b border-white/[0.06] bg-gradient-to-br from-[#1c1c1c] to-[#0c0c0c]">
+                                                <div className="absolute h-28 w-28 rounded-full bg-red-600/[0.05] blur-2xl transition group-hover:bg-red-600/[0.12]" />
+
+                                                {!imageFailed && imageUrl ? (
+                                                    <img
+                                                        src={imageUrl}
+                                                        alt={product.name}
+                                                        loading="lazy"
+                                                        onError={() => markImageAsFailed(product.id_product)}
+                                                        className="relative z-[1] h-full w-full object-contain p-4 transition duration-300 group-hover:scale-105"
+                                                    />
+                                                ) : (
+                                                    <IconTool
+                                                        size={48}
+                                                        stroke={1}
+                                                        className="relative z-[1] text-zinc-700 transition duration-300 group-hover:scale-110 group-hover:text-red-400/80"
+                                                    />
+                                                )}
+
+                                                <span
+                                                    className={`absolute right-3 top-3 z-[2] rounded-full border bg-[#090909]/90 px-2.5 py-1 text-[10px] font-medium ${
+                                                        product.stock > 0
+                                                            ? "border-emerald-500/20 text-emerald-400"
+                                                            : "border-red-500/20 text-red-400"
+                                                    }`}
+                                                >
+                                                    {product.stock > 0 ? "Disponible" : "Sin stock"}
                                                 </span>
                                             </div>
-                                        </div>
-                                    </Link>
-                                </article>
-                            ))}
+
+                                            <div className="p-5">
+                                                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-red-400">
+                                                    {product.brand?.name ?? "RPM"}
+                                                    {product.category?.name ? ` / ${product.category.name}` : ""}
+                                                </p>
+
+                                                <h3 className="mt-3 line-clamp-2 min-h-12 text-sm font-semibold leading-6 text-zinc-200 transition group-hover:text-white">
+                                                    {product.name}
+                                                </h3>
+
+                                                <p className="mt-1 truncate text-xs text-zinc-500">
+                                                    {product.model || product.sku}
+                                                </p>
+
+                                                <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+                                                    <span className="text-base font-bold">
+                                                        {formatPrice(Number(product.price))}
+                                                    </span>
+                                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-zinc-400 transition group-hover:bg-red-600 group-hover:text-white">
+                                                        <IconArrowUpRight size={19} />
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    </article>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="rounded-2xl border border-white/[0.08] bg-[#111] px-6 py-12 text-center">
@@ -504,7 +571,7 @@ export default function Page() {
                             </h3>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">
                                 {apiError
-                                    ? "Revisa que el backend esté funcionando y que BACKEND esté configurada correctamente."
+                                    ? "Revisa que el backend esté funcionando y que NEXT_PUBLIC_BACKEND esté configurada correctamente."
                                     : "Cuando haya productos disponibles en RPM, aparecerán en esta sección."}
                             </p>
                             <Link

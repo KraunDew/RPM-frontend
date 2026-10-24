@@ -1,6 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
+import { IconArrowLeft, IconCar, IconShoppingBag } from "@tabler/icons-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -14,9 +15,11 @@ type Product = {
     price: number;
     description?: string | null;
     stock: number;
-    category: { name: string };
-    brand: { name: string };
-    supplier: { name: string };
+    photo_path?: string | null;
+    image?: string | null;
+    category?: { name: string } | null;
+    brand?: { name: string } | null;
+    supplier?: { name: string } | null;
 };
 
 type CartItem = {
@@ -32,12 +35,35 @@ type CartItem = {
     quantity: number;
 };
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
+
 function formatPrice(price: number) {
     return new Intl.NumberFormat("es-CL", {
         style: "currency",
         currency: "CLP",
         maximumFractionDigits: 0,
     }).format(price);
+}
+
+function getProductImage(product: Product): string {
+    const path = product.photo_path || product.image;
+
+    if (!path?.trim() || !BACKEND_URL) return "";
+
+    const value = path.trim();
+
+    if (/^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    const normalizedPath = value.replace(/\\/g, "/");
+    const publicMatch = normalizedPath.match(/(?:^|\/)public\/(.+)$/);
+
+    if (publicMatch?.[1]) {
+        return `${BACKEND_URL}/public/${publicMatch[1].split("/").map(encodeURIComponent).join("/")}`;
+    }
+
+    return `${BACKEND_URL}/public/${normalizedPath.replace(/^\/+/, "").split("/").map(encodeURIComponent).join("/")}`;
 }
 
 export default function ProductPage() {
@@ -48,22 +74,28 @@ export default function ProductPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
+    const [imageFailed, setImageFailed] = useState(false);
 
     useEffect(() => {
+        let cancelled = false;
+
         async function loadProduct() {
             try {
-                const backend = process.env.NEXT_PUBLIC_BACKEND;
-
-                if (!backend) {
-                    throw new Error("Falta configurar BACKEND");
+                if (!BACKEND_URL) {
+                    throw new Error("Falta configurar NEXT_PUBLIC_BACKEND en las variables de entorno.");
                 }
 
-                const response = await fetch(`${backend.replace(/\/+$/, "")}/products/${encodeURIComponent(id)}`, {
+                setLoading(true);
+                setError("");
+                setProduct(null);
+                setImageFailed(false);
+
+                const response = await fetch(`${BACKEND_URL}/products/${encodeURIComponent(id)}`, {
                     cache: "no-store",
                 });
 
                 if (response.status === 404) {
-                    setProduct(null);
+                    if (!cancelled) setProduct(null);
                     return;
                 }
 
@@ -72,18 +104,31 @@ export default function ProductPage() {
                 }
 
                 const data: Product = await response.json();
-                setProduct(data);
+
+                if (!cancelled) {
+                    setProduct(data);
+                }
             } catch (err) {
                 console.error("Error al cargar el producto:", err);
-                setError(err instanceof Error ? err.message : "Ocurrió un error al cargar el producto.");
+
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : "Ocurrió un error al cargar el producto.");
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         }
 
         if (id) {
-            loadProduct();
+            void loadProduct();
+        } else {
+            setLoading(false);
+            setError("No se encontró el identificador del producto.");
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [id]);
 
     function addToCart() {
@@ -96,9 +141,13 @@ export default function ProductPage() {
 
         try {
             const savedCart = localStorage.getItem("rpm-carrito");
-            const cart: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
+            const parsedCart: unknown = savedCart ? JSON.parse(savedCart) : [];
+
+            const cart: CartItem[] = Array.isArray(parsedCart) ? parsedCart : [];
 
             const existingIndex = cart.findIndex(item => item.id_product === product.id_product);
+
+            const image = getProductImage(product);
 
             if (existingIndex !== -1) {
                 const existingItem = cart[existingIndex];
@@ -113,10 +162,11 @@ export default function ProductPage() {
                     name: product.name,
                     sku: product.sku,
                     model: product.model,
-                    category: product.category.name,
-                    brand: product.brand.name,
-                    price: product.price,
+                    category: product.category?.name ?? "Sin categoría",
+                    brand: product.brand?.name ?? "Sin marca",
+                    price: Number(product.price),
                     stock: product.stock,
+                    image: image || existingItem.image || "",
                     quantity: existingItem.quantity + 1,
                 };
             } else {
@@ -125,11 +175,11 @@ export default function ProductPage() {
                     sku: product.sku,
                     name: product.name,
                     model: product.model,
-                    category: product.category.name,
-                    brand: product.brand.name,
-                    price: product.price,
+                    category: product.category?.name ?? "Sin categoría",
+                    brand: product.brand?.name ?? "Sin marca",
+                    price: Number(product.price),
                     stock: product.stock,
-                    image: "",
+                    image,
                     quantity: 1,
                 });
             }
@@ -157,7 +207,7 @@ export default function ProductPage() {
             <main className="flex min-h-screen flex-col items-center justify-center bg-[#090909] px-6 text-center text-white">
                 <p className="text-sm font-semibold tracking-[0.2em] text-red-500">RPM / PRODUCTOS</p>
                 <h1 className="mt-4 text-2xl font-bold">No pudimos cargar el producto</h1>
-                <p className="mt-3 text-zinc-400">{error}</p>
+                <p className="mt-3 max-w-lg text-zinc-400">{error}</p>
                 <Link
                     href="/catalogo"
                     className="mt-6 rounded-xl bg-red-600 px-5 py-3 font-semibold transition hover:bg-red-500"
@@ -184,37 +234,67 @@ export default function ProductPage() {
         );
     }
 
+    const imageUrl = getProductImage(product);
+
     return (
         <>
             <Header />
 
             <main className="min-h-screen bg-[#090909] px-4 py-10 text-white sm:px-8">
                 <div className="mx-auto max-w-6xl">
-                    <nav className="mb-8 text-sm text-zinc-500">
+                    <nav className="mb-8 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
                         <Link href="/" className="transition hover:text-white">
                             Inicio
                         </Link>
-                        {" / "}
+                        <span>/</span>
                         <Link href="/catalogo" className="transition hover:text-white">
                             Catálogo
                         </Link>
-                        {" / "}
+                        <span>/</span>
                         <span className="text-zinc-300">{product.name}</span>
                     </nav>
 
                     <section className="grid gap-10 lg:grid-cols-2">
-                        {/* Imagen del producto */}
-                        <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#191919] to-[#0d0d0d] p-8">
-                            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-red-600/10 blur-3xl" />
+                        <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#191919] to-[#0d0d0d] p-6 sm:min-h-[480px] sm:p-8">
+                            <div
+                                aria-hidden="true"
+                                className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-red-600/10 blur-3xl"
+                            />
 
-                            <div className="relative text-center">
-                                <p className="text-xs font-semibold tracking-[0.2em] text-red-500">RPM AUTOMOTRIZ</p>
-                                <p className="mt-3 text-sm text-zinc-500">Imagen del producto por integrar</p>
-                                <p className="mt-2 text-xs text-zinc-600">SKU: {product.sku}</p>
-                            </div>
+                            <div
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-0 opacity-20"
+                                style={{
+                                    backgroundImage:
+                                        "linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)",
+                                    backgroundSize: "32px 32px",
+                                }}
+                            />
+
+                            {imageUrl && !imageFailed ? (
+                                <img
+                                    src={imageUrl}
+                                    alt={product.name}
+                                    onError={() => setImageFailed(true)}
+                                    className="relative z-[1] max-h-[420px] w-full object-contain"
+                                />
+                            ) : (
+                                <div className="relative z-[1] flex flex-col items-center text-center">
+                                    <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.03] text-zinc-500">
+                                        <IconCar size={54} stroke={1.2} />
+                                    </div>
+                                    <p className="mt-5 text-xs font-semibold tracking-[0.2em] text-red-500">
+                                        RPM AUTOMOTRIZ
+                                    </p>
+                                    <p className="mt-2 text-sm text-zinc-500">Imagen no disponible</p>
+                                </div>
+                            )}
+
+                            <span className="absolute bottom-4 right-4 z-[2] rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-zinc-300">
+                                SKU: {product.sku}
+                            </span>
                         </div>
 
-                        {/* Información del producto */}
                         <div className="flex flex-col justify-center">
                             <p className="text-sm font-medium text-red-400">
                                 {product.category?.name ?? "Sin categoría"} · {product.brand?.name ?? "Sin marca"}
@@ -224,7 +304,7 @@ export default function ProductPage() {
 
                             <p className="mt-3 text-sm text-zinc-400">Modelo: {product.model || "No especificado"}</p>
 
-                            <p className="mt-6 text-3xl font-bold">{formatPrice(product.price)}</p>
+                            <p className="mt-6 text-3xl font-bold">{formatPrice(Number(product.price))}</p>
 
                             <p className="mt-5 leading-7 text-zinc-300">
                                 {product.description || "Sin descripción disponible."}
@@ -257,8 +337,9 @@ export default function ProductPage() {
                                 type="button"
                                 onClick={addToCart}
                                 disabled={product.stock <= 0}
-                                className="mt-6 w-full rounded-xl bg-red-600 px-6 py-4 font-semibold transition hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                                className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-red-600 px-6 py-4 font-semibold transition hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
                             >
+                                <IconShoppingBag size={20} />
                                 {product.stock > 0 ? "Agregar al carrito" : "Sin stock"}
                             </button>
 
@@ -277,6 +358,14 @@ export default function ProductPage() {
                             <p className="mt-3 text-xs leading-5 text-zinc-500">
                                 Antes de comprar, verifica que el repuesto sea compatible con tu vehículo.
                             </p>
+
+                            <Link
+                                href="/catalogo"
+                                className="mt-6 inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-white"
+                            >
+                                <IconArrowLeft size={17} />
+                                Volver al catálogo
+                            </Link>
                         </div>
                     </section>
                 </div>

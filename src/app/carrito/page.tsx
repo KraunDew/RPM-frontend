@@ -38,11 +38,12 @@ type ProductoAPI = {
     brand?: { name?: string } | string;
     price: number | string;
     stock: number;
-    image?: string;
+    image?: string | null;
+    photo_path?: string | null;
 };
 
 const STORAGE_KEY = "rpm-carrito";
-const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/$/, "");
+const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
 
 const formatoPrecio = (precio: number) =>
     new Intl.NumberFormat("es-CL", {
@@ -56,6 +57,49 @@ function nombreRelacion(relacion: { name?: string } | string | undefined): strin
     return relacion?.name;
 }
 
+/**
+ * Convierte la ruta almacenada por el backend en una URL accesible.
+ *
+ * Ejemplos:
+ * public/photos/imagen.jpg
+ * -> https://tu-backend.com/public/photos/imagen.jpg
+ *
+ * photos/imagen.jpg
+ * -> https://tu-backend.com/public/photos/imagen.jpg
+ */
+function obtenerUrlImagen(producto: ProductoAPI): string | undefined {
+    const ruta = producto.photo_path || producto.image;
+
+    if (!ruta || typeof ruta !== "string") {
+        return undefined;
+    }
+
+    const rutaLimpia = ruta.trim();
+
+    if (!rutaLimpia) {
+        return undefined;
+    }
+
+    if (/^https?:\/\//i.test(rutaLimpia)) {
+        return rutaLimpia;
+    }
+
+    if (!API_URL) {
+        return undefined;
+    }
+
+    const rutaNormalizada = rutaLimpia
+        .replace(/\\/g, "/")
+        .replace(/^\.\/+/, "")
+        .replace(/^\/+/, "");
+
+    if (rutaNormalizada.startsWith("public/")) {
+        return `${API_URL}/${rutaNormalizada}`;
+    }
+
+    return `${API_URL}/public/${rutaNormalizada}`;
+}
+
 function normalizarProducto(producto: ProductoAPI, cantidad = 1): ProductoCarrito {
     return {
         id_product: producto.id_product,
@@ -66,13 +110,15 @@ function normalizarProducto(producto: ProductoAPI, cantidad = 1): ProductoCarrit
         brand: nombreRelacion(producto.brand),
         price: Number(producto.price),
         stock: Math.max(0, Number(producto.stock) || 0),
-        image: producto.image,
+        image: obtenerUrlImagen(producto),
         quantity: cantidad,
     };
 }
 
 function extraerProductos(respuesta: unknown): ProductoAPI[] {
-    if (Array.isArray(respuesta)) return respuesta as ProductoAPI[];
+    if (Array.isArray(respuesta)) {
+        return respuesta as ProductoAPI[];
+    }
 
     if (respuesta && typeof respuesta === "object") {
         const objeto = respuesta as {
@@ -95,9 +141,11 @@ function extraerProductos(respuesta: unknown): ProductoAPI[] {
 function leerCarrito(): ProductoCarrito[] {
     try {
         const guardado = localStorage.getItem(STORAGE_KEY);
+
         if (!guardado) return [];
 
         const datos: unknown = JSON.parse(guardado);
+
         if (!Array.isArray(datos)) return [];
 
         const productos: (ProductoCarrito | null)[] = datos.map((elemento: unknown): ProductoCarrito | null => {
@@ -199,7 +247,10 @@ export default function CarritoPage() {
                     return producto;
                 }
 
-                return { ...producto, quantity: nuevaCantidad };
+                return {
+                    ...producto,
+                    quantity: nuevaCantidad,
+                };
             }),
         );
     }, []);
@@ -220,7 +271,7 @@ export default function CarritoPage() {
         if (carrito.length === 0 || validando) return;
 
         if (!API_URL) {
-            setMensaje("Falta configurar BACKEND en las variables de entorno.");
+            setMensaje("Falta configurar NEXT_PUBLIC_BACKEND en las variables de entorno.");
             setTipoMensaje("error");
             return;
         }
@@ -232,12 +283,14 @@ export default function CarritoPage() {
         try {
             const respuesta = await fetch(`${API_URL}/products`, {
                 method: "GET",
-                headers: { Accept: "application/json" },
+                headers: {
+                    Accept: "application/json",
+                },
                 cache: "no-store",
             });
 
             if (!respuesta.ok) {
-                throw new Error("No se pudo consultar el catálogo.");
+                throw new Error(`No se pudo consultar el catálogo (HTTP ${respuesta.status}).`);
             }
 
             const json: unknown = await respuesta.json();
@@ -268,6 +321,8 @@ export default function CarritoPage() {
                     continue;
                 }
 
+                // Normaliza también photo_path, para actualizar las imágenes
+                // que estaban guardadas en el carrito antes de este cambio.
                 actualizados.push(normalizarProducto(actual, producto.quantity));
 
                 if (stockActual === 0) {
@@ -299,6 +354,7 @@ export default function CarritoPage() {
             setTipoMensaje("success");
         } catch (error) {
             console.error("Error validando la compra:", error);
+
             setMensaje(
                 error instanceof Error ? error.message : "No fue posible validar el stock. Inténtalo nuevamente.",
             );
@@ -462,6 +518,10 @@ export default function CarritoPage() {
                                                         <img
                                                             src={producto.image}
                                                             alt={producto.name}
+                                                            loading="lazy"
+                                                            onError={event => {
+                                                                event.currentTarget.style.display = "none";
+                                                            }}
                                                             className="h-full w-full object-contain p-2"
                                                         />
                                                     ) : (
@@ -513,11 +573,11 @@ export default function CarritoPage() {
                                                             }`}
                                                         >
                                                             <span
-                                                                className={`h-1.5 w-1.5 rounded-full ${
+                                                                className={`h-1.5 w-1.5 ${
                                                                     sinStock || cantidadExcedida
                                                                         ? "bg-red-400"
                                                                         : "bg-emerald-400"
-                                                                }`}
+                                                                } rounded-full`}
                                                             />
                                                             {sinStock
                                                                 ? "Sin stock"

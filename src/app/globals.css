@@ -265,3 +265,281 @@
         scrollbar-color: #414149 transparent;
     }
 }
+
+/* =========================================
+   RPM: automóvil interactivo
+   ========================================= */
+
+.rpm-car {
+    transform: translateX(0) scale(1);
+    transform-origin: center;
+    transition:
+        transform 250ms ease,
+        filter 250ms ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.rpm-car:not(:disabled):hover {
+    transform: translateY(-4px) scale(1.015);
+    filter: brightness(1.08);
+}
+
+.rpm-car:disabled {
+    cursor: default;
+}
+
+.rpm-car-launch {
+    animation: rpm-car-drive 1.1s cubic-bezier(0.2, 0.75, 0.3, 1) both;
+}
+
+.rpm-speed-lines {
+    opacity: 0;
+    transform: translateX(-18px);
+}
+
+.rpm-speed-active {
+    animation: rpm-speed-trail 1.1s ease-out both;
+}
+
+.rpm-wheel-spin {
+    animation: rpm-wheel-rotate 450ms linear infinite;
+}
+
+@keyframes rpm-car-drive {
+    0% {
+        transform: translateX(0) scale(1);
+    }
+
+    16% {
+        transform: translateX(-5px) scale(0.98);
+    }
+
+    48% {
+        transform: translateX(35px) scale(1.04);
+    }
+
+    72% {
+        transform: translateX(18px) scale(1.02);
+    }
+
+    100% {
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes rpm-speed-trail {
+    0%,
+    15% {
+        opacity: 0;
+        transform: translateX(-18px);
+    }
+
+    35%,
+    65% {
+        opacity: 1;
+        transform: translateX(-5px);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-35px);
+    }
+}
+
+@keyframes rpm-wheel-rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Respeta la preferencia del usuario por menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+    .rpm-car,
+    .rpm-car-launch,
+    .rpm-wheel-spin,
+    .rpm-speed-active {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* =========================================
+   RPM: selector de tema
+   ========================================= */
+
+.rpm-theme-switch {
+    border-color: rgb(255 255 255 / 12%);
+    background: rgb(255 255 255 / 5%);
+    color: #e4e4e7;
+}
+
+.rpm-theme-switch:hover {
+    border-color: rgb(239 68 68 / 45%);
+    background: rgb(239 68 68 / 10%);
+    color: #f87171;
+}
+
+.rpm-theme-switch svg {
+    flex-shrink: 0;
+}
+
+/* =========================================
+   RPM: modo claro
+   ========================================= */
+
+html.light {
+    color-scheme: light;
+
+    --background: #f5f6f8;
+    --foreground: #18181b;
+
+    --card: #ffffff;
+    --card-foreground: #18181b;
+
+    --popover: #ffffff;
+    --popover-foreground: #18181b;
+
+    --secondary: #e9eaee;
+    --secondary-foreground: #27272a;
+
+    --muted: #e9eaee;
+    --muted-foreground: #656570;
+
+    --accent: #fee2e2;
+    --accent-foreground: #7f1d1d;
+
+    --border: #dedfe4;
+    --input: #e5e7eb;
+    --ring: #dc2626;
+
+    background-color: var(--background);
+    color: var(--foreground);
+}
+
+html.light body {
+    background-color: #f5f6f8;
+    color: #18181b;
+}
+
+html.light .rpm-theme-switch {
+    border-color: #e4d5d5;
+    background: #fff;
+    color: #b91c1c;
+}
+
+html.light .rpm-theme-switch:hover {
+    border-color: #fca5a5;
+    background: #fff1f2;
+}
+
+/* Encabezado */
+html.light header.sticky {
+    background-color: rgb(255 255 255 / 94%) !important;
+    border-color: #e5dada !important;
+    color: #18181b !important;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 7%);
+}
+
+/* Fondos oscuros sólidos de las páginas y tarjetas */
+html.light [class*="bg-[#080808"],
+html.light [class*="bg-[#090b0e"],
+html.light [class*="bg-[#090909"],
+html.light [class*="bg-[#0c0c0c"],
+html.light [class*="bg-[#0d0d0d"],
+html.light [class*="bg-[#101010"],
+html.light [class*="bg-[#111"],
+html.light [class*="bg-[#1111"],
+html.light [class*="bg-[#1112"],
+html.light [class*="bg-[#1113"],
+html.light [class*="bg-[#121212"],
+html.light [class*="bg-[#141414"],
+html.light [class*="bg-[#151515"],
+html.light [class*="bg-[#15171b"],
+html.light [class*="bg-[#171419"],
+html.light [class*="bg-[#1c1c1c"],
+html.light [class*="bg-[#090b0e"],
+html.light [class*="bg-[#1b0b0b"],
+html.light [class*="bg-[#120c0c"] {
+    background-color: #ffffff !important;
+}
+
+/* Superficies translúcidas */
+html.light [class*="bg-white/[0.03"],
+html.light [class*="bg-white/[0.04"],
+html.light [class*="bg-white/[0.05"],
+html.light [class*="bg-white/[0.06"],
+html.light [class*="bg-white/[0.07"] {
+    background-color: rgb(24 24 27 / 4%) !important;
+}
+
+/* Texto principal */
+html.light [class~="text-white"]:not([class*="bg-red-"]):not([class*="bg-emerald-"]),
+html.light [class~="text-gray-200"],
+html.light [class~="text-gray-300"],
+html.light [class~="text-zinc-200"],
+html.light [class~="text-zinc-300"],
+html.light [class~="text-zinc-400"] {
+    color: #27272a !important;
+}
+
+/* Texto secundario */
+html.light [class~="text-zinc-500"],
+html.light [class~="text-zinc-600"],
+html.light [class~="text-gray-400"],
+html.light [class~="text-gray-500"] {
+    color: #656570 !important;
+}
+
+/* Bordes claros sobre superficies oscuras */
+html.light [class*="border-white/"],
+html.light [class*="border-white/["] {
+    border-color: #e4e4e7 !important;
+}
+
+/* Mantiene botones principales en rojo y sus textos blancos */
+html.light [class*="bg-red-600"],
+html.light [class*="bg-red-700"] {
+    color: #ffffff;
+}
+
+/* Menú de usuario */
+html.light header [class*="shadow-2xl"] {
+    box-shadow: 0 16px 40px rgb(15 23 42 / 12%);
+}
+
+/* Campos de búsqueda */
+html.light input,
+html.light textarea,
+html.light select {
+    color: #18181b;
+    color-scheme: light;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+    color: #71717a;
+}
+
+/* Transición suave del tema */
+html,
+html body,
+html body header,
+html body main {
+    transition:
+        background-color 180ms ease,
+        color 180ms ease;
+}
+
+/* Accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+    html,
+    html body,
+    html body header,
+    html body main {
+        transition: none;
+    }
+}

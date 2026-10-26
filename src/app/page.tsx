@@ -16,7 +16,7 @@ import {
     IconTool,
 } from "@tabler/icons-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 type Product = {
     id_product: string;
@@ -96,6 +96,7 @@ export default function Page() {
     const [search, setSearch] = useState("");
     const [apiError, setApiError] = useState(false);
     const [failedImages, setFailedImages] = useState<string[]>([]);
+    const [carMoving, setCarMoving] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -148,7 +149,7 @@ export default function Page() {
         };
     }, []);
 
-    function searchProducts(event: React.FormEvent<HTMLFormElement>) {
+    function searchProducts(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const query = search.trim();
@@ -163,6 +164,11 @@ export default function Page() {
 
     function markImageAsFailed(id: string) {
         setFailedImages(previous => (previous.includes(id) ? previous : [...previous, id]));
+    }
+
+    function animateCar() {
+        if (carMoving) return;
+        setCarMoving(true);
     }
 
     return (
@@ -239,7 +245,7 @@ export default function Page() {
                         </div>
                     </div>
 
-                    {/* Visual principal */}
+                    {/* VISUAL PRINCIPAL */}
                     <div className="relative mx-auto w-full max-w-xl lg:ml-auto">
                         <div className="absolute inset-8 rounded-full bg-red-700/15 blur-[85px]" />
 
@@ -270,104 +276,192 @@ export default function Page() {
                                 <div className="absolute h-40 w-40 rounded-full border border-white/[0.06] sm:h-52 sm:w-52" />
                                 <div className="absolute h-64 w-64 rounded-full bg-red-600/[0.06] blur-3xl" />
 
-                                <svg
-                                    viewBox="0 0 500 300"
-                                    role="img"
-                                    aria-label="Ilustración de un automóvil deportivo"
-                                    className="relative z-10 w-full drop-shadow-[0_22px_30px_rgba(180,0,0,0.2)]"
-                                    fill="none"
+                                <button
+                                    key={carMoving ? "moving" : "idle"}
+                                    type="button"
+                                    onClick={animateCar}
+                                    disabled={carMoving}
+                                    aria-label="Acelerar automóvil"
+                                    title="Haz clic para acelerar"
+                                    onAnimationEnd={() => setCarMoving(false)}
+                                    className={`rpm-car relative z-10 w-full cursor-pointer rounded-xl border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-red-500 ${
+                                        carMoving ? "rpm-car-launch" : ""
+                                    }`}
                                 >
-                                    <defs>
-                                        <linearGradient
-                                            id="carPaint"
-                                            x1="80"
-                                            y1="70"
-                                            x2="390"
-                                            y2="240"
-                                            gradientUnits="userSpaceOnUse"
-                                        >
-                                            <stop stopColor="#ff4545" />
-                                            <stop offset=".5" stopColor="#b91c1c" />
-                                            <stop offset="1" stopColor="#450a0a" />
-                                        </linearGradient>
-                                        <linearGradient
-                                            id="glassPaint"
-                                            x1="190"
-                                            y1="80"
-                                            x2="320"
-                                            y2="150"
-                                            gradientUnits="userSpaceOnUse"
-                                        >
-                                            <stop stopColor="#555b64" />
-                                            <stop offset="1" stopColor="#15171b" />
-                                        </linearGradient>
-                                    </defs>
+                                    <svg
+                                        viewBox="0 0 500 300"
+                                        role="img"
+                                        aria-label="Ilustración de un automóvil deportivo rojo"
+                                        className="w-full drop-shadow-[0_22px_30px_rgba(180,0,0,0.2)]"
+                                        fill="none"
+                                    >
+                                        <defs>
+                                            <linearGradient
+                                                id="carPaint"
+                                                x1="80"
+                                                y1="70"
+                                                x2="390"
+                                                y2="240"
+                                                gradientUnits="userSpaceOnUse"
+                                            >
+                                                <stop stopColor="#ff4545" />
+                                                <stop offset=".5" stopColor="#b91c1c" />
+                                                <stop offset="1" stopColor="#450a0a" />
+                                            </linearGradient>
 
-                                    <ellipse cx="250" cy="246" rx="184" ry="15" fill="#000" opacity=".65" />
-                                    <path
-                                        d="M65 198 L83 170 Q91 158 117 151 L166 136 L214 88 Q225 77 245 77 L311 81 Q333 84 348 105 L383 145 L418 164 Q430 172 430 187 L424 208 L393 221 L105 221 L70 211 Z"
-                                        fill="url(#carPaint)"
-                                        stroke="#ef4444"
-                                        strokeWidth="2"
-                                    />
-                                    <path
-                                        d="M178 135 L221 94 Q229 87 246 87 L271 89 L271 136 Z"
-                                        fill="url(#glassPaint)"
-                                        stroke="#7f1d1d"
-                                        strokeWidth="2"
-                                    />
-                                    <path
-                                        d="M282 90 L309 94 Q325 97 337 114 L355 137 L282 136 Z"
-                                        fill="url(#glassPaint)"
-                                        stroke="#7f1d1d"
-                                        strokeWidth="2"
-                                    />
-                                    <path
-                                        d="M80 176 L129 160 L165 143 L177 143 L155 177 Z"
-                                        fill="#ef4444"
-                                        opacity=".5"
-                                    />
-                                    <path d="M283 144 L373 149 L403 167 L354 167 Z" fill="#ef4444" opacity=".45" />
-                                    <path d="M73 194 L119 194 L111 206 L73 204 Z" fill="#f8fafc" opacity=".9" />
-                                    <path d="M379 174 L421 182 L415 193 L382 189 Z" fill="#fca5a5" />
-                                    <path
-                                        d="M162 142 L165 135 M274 90 L274 137 M282 137 L355 138"
-                                        stroke="#fca5a5"
-                                        strokeWidth="2"
-                                        opacity=".65"
-                                    />
-                                    <path
-                                        d="M135 220 L145 195 L192 195 L204 220 M322 220 L333 194 L379 194 L390 220"
-                                        fill="#171717"
-                                        stroke="#525252"
-                                        strokeWidth="2"
-                                    />
-                                    <circle cx="169" cy="215" r="27" fill="#090909" stroke="#525252" strokeWidth="4" />
-                                    <circle cx="169" cy="215" r="15" fill="#262626" stroke="#a3a3a3" strokeWidth="2" />
-                                    <circle cx="169" cy="215" r="5" fill="#dc2626" />
-                                    <path
-                                        d="M169 202 L169 228 M156 215 L182 215 M160 206 L178 224 M178 206 L160 224"
-                                        stroke="#737373"
-                                        strokeWidth="2"
-                                    />
-                                    <circle cx="359" cy="215" r="27" fill="#090909" stroke="#525252" strokeWidth="4" />
-                                    <circle cx="359" cy="215" r="15" fill="#262626" stroke="#a3a3a3" strokeWidth="2" />
-                                    <circle cx="359" cy="215" r="5" fill="#dc2626" />
-                                    <path
-                                        d="M359 202 L359 228 M346 215 L372 215 M350 206 L368 224 M368 206 L350 224"
-                                        stroke="#737373"
-                                        strokeWidth="2"
-                                    />
-                                    <path d="M196 177 L283 177" stroke="#fecaca" strokeWidth="2" opacity=".55" />
-                                </svg>
+                                            <linearGradient
+                                                id="glassPaint"
+                                                x1="190"
+                                                y1="80"
+                                                x2="320"
+                                                y2="150"
+                                                gradientUnits="userSpaceOnUse"
+                                            >
+                                                <stop stopColor="#555b64" />
+                                                <stop offset="1" stopColor="#15171b" />
+                                            </linearGradient>
+                                        </defs>
 
-                                <div className="absolute bottom-3 left-0 rounded-xl border border-white/10 bg-[#111]/90 px-4 py-3 backdrop-blur">
+                                        <ellipse cx="250" cy="246" rx="184" ry="15" fill="#000" opacity=".65" />
+
+                                        <g
+                                            className={
+                                                carMoving ? "rpm-speed-lines rpm-speed-active" : "rpm-speed-lines"
+                                            }
+                                            stroke="#f87171"
+                                            strokeLinecap="round"
+                                        >
+                                            <path d="M35 145 H105" strokeWidth="3" />
+                                            <path d="M15 165 H82" strokeWidth="2" />
+                                            <path d="M42 185 H92" strokeWidth="2" />
+                                            <path d="M55 205 H115" strokeWidth="3" />
+                                        </g>
+
+                                        <path
+                                            d="M65 198 L83 170 Q91 158 117 151 L166 136 L214 88 Q225 77 245 77 L311 81 Q333 84 348 105 L383 145 L418 164 Q430 172 430 187 L424 208 L393 221 L105 221 L70 211 Z"
+                                            fill="url(#carPaint)"
+                                            stroke="#ef4444"
+                                            strokeWidth="2"
+                                        />
+
+                                        <path
+                                            d="M178 135 L221 94 Q229 87 246 87 L271 89 L271 136 Z"
+                                            fill="url(#glassPaint)"
+                                            stroke="#7f1d1d"
+                                            strokeWidth="2"
+                                        />
+
+                                        <path
+                                            d="M282 90 L309 94 Q325 97 337 114 L355 137 L282 136 Z"
+                                            fill="url(#glassPaint)"
+                                            stroke="#7f1d1d"
+                                            strokeWidth="2"
+                                        />
+
+                                        <path
+                                            d="M80 176 L129 160 L165 143 L177 143 L155 177 Z"
+                                            fill="#ef4444"
+                                            opacity=".5"
+                                        />
+
+                                        <path d="M283 144 L373 149 L403 167 L354 167 Z" fill="#ef4444" opacity=".45" />
+
+                                        <path d="M73 194 L119 194 L111 206 L73 204 Z" fill="#f8fafc" opacity=".9" />
+
+                                        <path d="M379 174 L421 182 L415 193 L382 189 Z" fill="#fca5a5" />
+
+                                        <path
+                                            d="M162 142 L165 135 M274 90 L274 137 M282 137 L355 138"
+                                            stroke="#fca5a5"
+                                            strokeWidth="2"
+                                            opacity=".65"
+                                        />
+
+                                        <path
+                                            d="M135 220 L145 195 L192 195 L204 220 M322 220 L333 194 L379 194 L390 220"
+                                            fill="#171717"
+                                            stroke="#525252"
+                                            strokeWidth="2"
+                                        />
+
+                                        <g
+                                            className={carMoving ? "rpm-wheel-spin" : ""}
+                                            style={{
+                                                transformBox: "view-box",
+                                                transformOrigin: "169px 215px",
+                                            }}
+                                        >
+                                            <circle
+                                                cx="169"
+                                                cy="215"
+                                                r="27"
+                                                fill="#090909"
+                                                stroke="#525252"
+                                                strokeWidth="4"
+                                            />
+                                            <circle
+                                                cx="169"
+                                                cy="215"
+                                                r="15"
+                                                fill="#262626"
+                                                stroke="#a3a3a3"
+                                                strokeWidth="2"
+                                            />
+                                            <circle cx="169" cy="215" r="5" fill="#dc2626" />
+                                            <path
+                                                d="M169 202 L169 228 M156 215 L182 215 M160 206 L178 224 M178 206 L160 224"
+                                                stroke="#737373"
+                                                strokeWidth="2"
+                                            />
+                                        </g>
+
+                                        <g
+                                            className={carMoving ? "rpm-wheel-spin" : ""}
+                                            style={{
+                                                transformBox: "view-box",
+                                                transformOrigin: "359px 215px",
+                                            }}
+                                        >
+                                            <circle
+                                                cx="359"
+                                                cy="215"
+                                                r="27"
+                                                fill="#090909"
+                                                stroke="#525252"
+                                                strokeWidth="4"
+                                            />
+                                            <circle
+                                                cx="359"
+                                                cy="215"
+                                                r="15"
+                                                fill="#262626"
+                                                stroke="#a3a3a3"
+                                                strokeWidth="2"
+                                            />
+                                            <circle cx="359" cy="215" r="5" fill="#dc2626" />
+                                            <path
+                                                d="M359 202 L359 228 M346 215 L372 215 M350 206 L368 224 M368 206 L350 224"
+                                                stroke="#737373"
+                                                strokeWidth="2"
+                                            />
+                                        </g>
+
+                                        <path d="M196 177 L283 177" stroke="#fecaca" strokeWidth="2" opacity=".55" />
+                                    </svg>
+                                </button>
+
+                                <div className="pointer-events-none absolute bottom-3 left-0 rounded-xl border border-white/10 bg-[#111]/90 px-4 py-3 backdrop-blur">
                                     <p className="text-[10px] tracking-wider text-zinc-500">HECHO PARA AVANZAR</p>
-                                    <p className="mt-1 text-sm font-semibold">Encuentra tu pieza.</p>
+                                    <p className="mt-1 text-sm font-semibold">
+                                        {carMoving ? "¡Acelerando!" : "Encuentra tu pieza."}
+                                    </p>
                                 </div>
 
-                                <div className="absolute right-0 top-8 rounded-xl border border-red-500/20 bg-[#151010]/90 px-3 py-3 backdrop-blur">
-                                    <IconGauge size={23} className="text-red-400" />
+                                <div className="pointer-events-none absolute right-0 top-8 rounded-xl border border-red-500/20 bg-[#151010]/90 px-3 py-3 backdrop-blur">
+                                    <IconGauge
+                                        size={23}
+                                        className={carMoving ? "animate-pulse text-red-400" : "text-red-400"}
+                                    />
                                 </div>
                             </div>
 

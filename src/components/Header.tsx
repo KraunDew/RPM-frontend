@@ -10,8 +10,10 @@ import {
     IconLogout2,
     IconMapPin,
     IconMenu2,
+    IconMoon,
     IconPackage,
     IconShoppingCart,
+    IconSun,
     IconTool,
     IconUserCircle,
     IconUsersGroup,
@@ -24,8 +26,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./motion/popover";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND;
+const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
 const CART_KEY = "rpm-carrito";
+const THEME_KEY = "rpm-theme";
+
+type Theme = "dark" | "light";
 
 type AuthUser = User & {
     id_user?: string;
@@ -101,19 +106,58 @@ function getCartCount(): number {
     }
 }
 
+function applyTheme(theme: Theme) {
+    const root = document.documentElement;
+
+    root.classList.toggle("light", theme === "light");
+    root.classList.toggle("dark", theme === "dark");
+    root.style.colorScheme = theme;
+
+    try {
+        localStorage.setItem(THEME_KEY, theme);
+    } catch {
+        // El tema seguirá funcionando aunque el almacenamiento esté bloqueado.
+    }
+}
+
 function Header() {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [loadingUser, setLoadingUser] = useState(true);
     const [loggingOut, setLoggingOut] = useState(false);
     const [cartCount, setCartCount] = useState(0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [theme, setTheme] = useState<Theme>("dark");
 
     const pathname = usePathname();
     const router = useRouter();
 
+    useEffect(() => {
+        let savedTheme: Theme = "dark";
+
+        try {
+            const stored = localStorage.getItem(THEME_KEY);
+
+            if (stored === "light" || stored === "dark") {
+                savedTheme = stored;
+            }
+        } catch {
+            // Se usa el modo oscuro predeterminado.
+        }
+
+        setTheme(savedTheme);
+        applyTheme(savedTheme);
+    }, []);
+
+    const toggleTheme = () => {
+        const nextTheme: Theme = theme === "dark" ? "light" : "dark";
+
+        setTheme(nextTheme);
+        applyTheme(nextTheme);
+    };
+
     const fetchUser = useCallback(async () => {
         if (!API_URL) {
-            console.error("Falta configurar BACKEND.");
+            console.error("Falta configurar NEXT_PUBLIC_BACKEND.");
             setUser(null);
             setLoadingUser(false);
             return;
@@ -165,6 +209,7 @@ function Header() {
         };
 
         window.addEventListener("keydown", handleKeyDown);
+
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [mobileMenuOpen]);
 
@@ -174,13 +219,7 @@ function Header() {
         setLoggingOut(true);
 
         try {
-            await axios.post(
-                `${API_URL}/users/logout`,
-                {},
-                {
-                    withCredentials: true,
-                },
-            );
+            await axios.post(`${API_URL}/users/logout`, {}, { withCredentials: true });
 
             setUser(null);
             localStorage.removeItem(CART_KEY);
@@ -219,6 +258,22 @@ function Header() {
         `flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
             pathname === route ? "bg-red-600/15 text-red-400" : "text-gray-300 hover:bg-white/[0.06] hover:text-white"
         }`;
+
+    const themeButton = (
+        <button
+            type="button"
+            onClick={toggleTheme}
+            role="switch"
+            aria-checked={theme === "light"}
+            aria-label={theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
+            title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            className="rpm-theme-switch flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-2 transition-colors min-[380px]:h-10 min-[380px]:px-2.5 sm:h-11 sm:px-3"
+        >
+            {theme === "dark" ? <IconSun size={20} stroke={1.8} /> : <IconMoon size={20} stroke={1.8} />}
+
+            <span className="hidden text-xs font-semibold sm:inline">{theme === "dark" ? "Claro" : "Oscuro"}</span>
+        </button>
+    );
 
     return (
         <header className="sticky top-0 z-50 border-b border-red-900/40 bg-[#090b0e]/95 text-white shadow-lg shadow-black/30 backdrop-blur-xl">
@@ -261,6 +316,8 @@ function Header() {
                 </ul>
 
                 <div className="ml-auto flex shrink-0 items-center gap-1 min-[380px]:gap-1.5 sm:gap-2">
+                    {themeButton}
+
                     <Link
                         href="/carrito"
                         aria-label={`Ver carrito: ${cartCount} ${cartCount === 1 ? "producto" : "productos"}`}
@@ -418,9 +475,17 @@ function Header() {
                         id="rpm-mobile-navigation"
                         className="absolute left-0 right-0 top-full z-50 w-full border-t border-red-900/40 bg-[#090b0e] px-3 pb-4 pt-3 shadow-xl shadow-black/40 sm:px-5 xl:hidden"
                     >
-                        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
-                            Navegación
-                        </p>
+                        <div className="mb-3 flex items-center justify-between px-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                                Navegación
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400">
+                                    {theme === "dark" ? "Modo oscuro" : "Modo claro"}
+                                </span>
+                                {themeButton}
+                            </div>
+                        </div>
 
                         <ul className="grid grid-cols-1 gap-1 min-[420px]:grid-cols-2">
                             {navigation.map(({ name, route, icon: Icon }) => {

@@ -166,7 +166,7 @@ export default function RegisterPage() {
                 {
                     firstName: firstName.trim(),
                     lastName: lastName.trim(),
-                    email: email.trim(),
+                    email: email.trim().toLowerCase(),
                     birthDate,
                     password: pass,
                 },

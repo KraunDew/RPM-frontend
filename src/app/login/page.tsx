@@ -56,7 +56,7 @@ export default function LoginPage() {
             await axios.post(
                 `${backendUrl.replace(/\/+$/, "")}/users/login`,
                 {
-                    email: email.trim(),
+                    email: email.trim().toLowerCase(),
                     password: pass,
                 },
                 {

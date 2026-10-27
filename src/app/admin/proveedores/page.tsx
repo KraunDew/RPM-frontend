@@ -17,17 +17,24 @@ import {
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND;
-const DPA_API = "https://apis.digital.gob.cl/dpa";
+const API_URL = process.env.NEXT_PUBLIC_BACKEND?.replace(/\/+$/, "");
+const REGIONS_API = "https://api-regiones-chile.vercel.app/api/regiones";
 
-type Region = {
-    codigo: string;
+type ApiCommune = {
     nombre: string;
+    codigo_postal?: string | number;
+};
+
+type ApiRegion = {
+    nombre: string;
+    numero: string;
+    comunas?: ApiCommune[];
 };
 
 type Commune = {
     codigo: string;
     nombre: string;
+    codigo_postal?: string;
 };
 
 type SupplierAddress = {
@@ -62,34 +69,6 @@ type SupplierForm = {
     reference: string;
 };
 
-const REGIONS: Region[] = [
-    { codigo: "15", nombre: "Región de Arica y Parinacota" },
-    { codigo: "01", nombre: "Región de Tarapacá" },
-    { codigo: "02", nombre: "Región de Antofagasta" },
-    { codigo: "03", nombre: "Región de Atacama" },
-    { codigo: "04", nombre: "Región de Coquimbo" },
-    { codigo: "05", nombre: "Región de Valparaíso" },
-    {
-        codigo: "13",
-        nombre: "Región Metropolitana de Santiago",
-    },
-    {
-        codigo: "06",
-        nombre: "Región del Libertador General Bernardo O'Higgins",
-    },
-    { codigo: "07", nombre: "Región del Maule" },
-    { codigo: "16", nombre: "Región de Ñuble" },
-    { codigo: "08", nombre: "Región del Biobío" },
-    { codigo: "09", nombre: "Región de La Araucanía" },
-    { codigo: "14", nombre: "Región de Los Ríos" },
-    { codigo: "10", nombre: "Región de Los Lagos" },
-    { codigo: "11", nombre: "Región de Aysén del General Carlos Ibáñez del Campo" },
-    {
-        codigo: "12",
-        nombre: "Región de Magallanes y de la Antártica Chilena",
-    },
-];
-
 const EMPTY_FORM: SupplierForm = {
     name: "",
     email: "",
@@ -103,17 +82,27 @@ const EMPTY_FORM: SupplierForm = {
     reference: "",
 };
 
+function normalizeText(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/^regi[oó]n\s+(de\s+la\s+|de\s+los\s+|de\s+las\s+|del\s+|de\s+)?/, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
 function getErrorMessage(error: unknown): string {
     if (!axios.isAxiosError(error)) {
         return error instanceof Error ? error.message : "Ocurrió un error inesperado.";
     }
 
-    const status = error.response?.status;
-    const data = error.response?.data as { message?: string | string[] } | undefined;
-
     if (!error.response) {
-        return "No se pudo conectar con el servidor. Revisa que el backend esté funcionando.";
+        return "No se pudo conectar con el servidor. Revisa tu conexión.";
     }
+
+    const status = error.response.status;
+    const data = error.response.data as { message?: string | string[] } | undefined;
 
     if (status === 400) {
         return Array.isArray(data?.message)
@@ -123,39 +112,21 @@ function getErrorMessage(error: unknown): string {
 
     if (status === 401) return "Tu sesión expiró. Inicia sesión nuevamente.";
     if (status === 403) return "No tienes permisos para realizar esta acción.";
-    if (status === 404) return "No se encontró el proveedor solicitado.";
+    if (status === 404) return "No se encontró el recurso solicitado.";
     if (status === 409) return "Ya existe un proveedor con esos datos.";
+    if (status >= 500) return "Error interno del servidor. Revisa el backend.";
 
-    if (status === 500) {
-        return "Ocurrió un error interno del servidor. Revisa el backend.";
-    }
-
-    if (Array.isArray(data?.message)) return data.message.join(", ");
-    if (data?.message) return data.message;
-
-    return "No se pudo completar la operación.";
+    return Array.isArray(data?.message)
+        ? data.message.join(", ")
+        : data?.message || "No se pudo completar la operación.";
 }
 
-function normalizeText(value: string): string {
-    return value
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim()
-        .toLowerCase();
-}
+function findMatchingRegion(regions: ApiRegion[], regionName: string): ApiRegion | undefined {
+    const target = normalizeText(regionName);
 
-function findRegion(regionName: string): Region | undefined {
-    const normalized = normalizeText(regionName)
-        .replace(/^region (de |del |de la |de los |de las )?/, "")
-        .replace(/^region metropolitana de /, "");
+    if (!target) return undefined;
 
-    return REGIONS.find(region => {
-        const candidate = normalizeText(region.nombre)
-            .replace(/^region (de |del |de la |de los |de las )?/, "")
-            .replace(/^region metropolitana de /, "");
-
-        return candidate === normalized || normalizeText(region.nombre) === normalizeText(regionName);
-    });
+    return regions.find(region => normalizeText(region.nombre) === target);
 }
 
 export default function ProveedoresPage() {
@@ -172,23 +143,31 @@ export default function ProveedoresPage() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
+    const [regions, setRegions] = useState<ApiRegion[]>([]);
+    const [loadingRegions, setLoadingRegions] = useState(false);
+    const [regionsError, setRegionsError] = useState("");
+
     const [communes, setCommunes] = useState<Commune[]>([]);
     const [loadingCommunes, setLoadingCommunes] = useState(false);
+
     const [communeError, setCommuneError] = useState("");
-    const [communeReloadKey, setCommuneReloadKey] = useState(0);
+    const [regionReloadKey, setRegionReloadKey] = useState(0);
 
-    const regions = REGIONS;
-
-    const selectedRegion = useMemo(() => findRegion(form.region), [form.region]);
+    const selectedRegion = useMemo(() => findMatchingRegion(regions, form.region), [regions, form.region]);
 
     const availableCommunes = useMemo(
         () => [...communes].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
         [communes],
     );
 
+    const selectedCommune = useMemo(
+        () => availableCommunes.find(commune => normalizeText(commune.nombre) === normalizeText(form.comune)),
+        [availableCommunes, form.comune],
+    );
+
     const loadSuppliers = useCallback(async () => {
         if (!API_URL) {
-            setError("Falta configurar BACKEND en .env.local.");
+            setError("Falta configurar NEXT_PUBLIC_BACKEND en las variables de entorno.");
             setLoading(false);
             return;
         }
@@ -202,11 +181,10 @@ export default function ProveedoresPage() {
             });
 
             const data = response.data;
-
             const list: Supplier[] | null = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : null;
 
             if (!list) {
-                throw new Error("La respuesta de /suppliers no contiene una lista de proveedores.");
+                throw new Error("La respuesta de /suppliers no contiene una lista válida.");
             }
 
             setSuppliers(list);
@@ -217,41 +195,115 @@ export default function ProveedoresPage() {
         }
     }, []);
 
-    // Las regiones están definidas localmente, así que no dependen de una API.
-    // Solo se consulta el servicio externo para obtener las comunas.
+    // Cargar las regiones desde la API oficial del proyecto.
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadRegions() {
+            setLoadingRegions(true);
+            setRegionsError("");
+
+            try {
+                const response = await axios.get<ApiRegion[]>(REGIONS_API, {
+                    timeout: 15000,
+                });
+
+                if (!Array.isArray(response.data)) {
+                    throw new Error("La API no devolvió una lista válida de regiones.");
+                }
+
+                const validRegions = response.data.filter(
+                    region => region && typeof region.nombre === "string" && typeof region.numero === "string",
+                );
+
+                if (validRegions.length === 0) {
+                    throw new Error("La API no contiene regiones válidas.");
+                }
+
+                if (!cancelled) {
+                    setRegions(validRegions);
+                }
+            } catch (err) {
+                console.error("Error cargando regiones de Chile:", err);
+
+                if (!cancelled) {
+                    setRegions([]);
+                    setRegionsError(
+                        "No se pudieron cargar las regiones. Comprueba tu conexión e inténtalo nuevamente.",
+                    );
+                }
+            } finally {
+                if (!cancelled) setLoadingRegions(false);
+            }
+        }
+
+        void loadRegions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [regionReloadKey]);
+
+    // Las comunas se obtienen de la región seleccionada.
+
+    // Cargar las comunas correspondientes a la región seleccionada.
     useEffect(() => {
         let cancelled = false;
 
         async function loadCommunes() {
-            if (!selectedRegion) {
-                setCommunes([]);
+            setCommunes([]);
+            setCommuneError("");
+
+            if (!modalOpen || !selectedRegion) {
                 setLoadingCommunes(false);
                 return;
             }
 
             setLoadingCommunes(true);
-            setCommuneError("");
-            setCommunes([]);
 
             try {
-                const response = await axios.get<Commune[]>(`${DPA_API}/regiones/${selectedRegion.codigo}/comunas`, {
-                    timeout: 10000,
+                const url = `${REGIONS_API}?numero=${encodeURIComponent(selectedRegion.numero.toLowerCase())}`;
+
+                const response = await axios.get<ApiRegion | ApiRegion[]>(url, {
+                    timeout: 15000,
                 });
 
-                if (!Array.isArray(response.data)) {
-                    throw new Error("Formato de comunas inválido.");
+                // La API puede devolver la región directamente o dentro de un arreglo.
+                const apiRegion = Array.isArray(response.data)
+                    ? response.data.find(region => region.numero.toLowerCase() === selectedRegion.numero.toLowerCase())
+                    : response.data;
+
+                if (!apiRegion || !Array.isArray(apiRegion.comunas)) {
+                    throw new Error(`La API no devolvió las comunas de ${selectedRegion.nombre}.`);
                 }
 
+                const data: Commune[] = apiRegion.comunas
+                    .filter(item => item && typeof item.nombre === "string" && item.nombre.trim().length > 0)
+                    .map(item => ({
+                        codigo: item.nombre,
+                        nombre: item.nombre,
+                        codigo_postal: item.codigo_postal == null ? undefined : String(item.codigo_postal),
+                    }))
+                    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
                 if (!cancelled) {
-                    setCommunes(response.data);
+                    setCommunes(data);
+
+                    if (data.length === 0) {
+                        setCommuneError(`No hay comunas disponibles para ${selectedRegion.nombre}.`);
+                    }
                 }
-            } catch {
+            } catch (err) {
+                console.error("Error cargando comunas:", err);
+
                 if (!cancelled) {
                     setCommunes([]);
-                    setCommuneError("No se pudieron cargar las comunas. Comprueba tu conexión e inténtalo nuevamente.");
+                    setCommuneError("No se pudieron cargar las comunas. Comprueba la conexión e inténtalo nuevamente.");
                 }
             } finally {
-                if (!cancelled) setLoadingCommunes(false);
+                if (!cancelled) {
+                    setLoadingCommunes(false);
+                }
             }
         }
 
@@ -260,7 +312,7 @@ export default function ProveedoresPage() {
         return () => {
             cancelled = true;
         };
-    }, [selectedRegion, communeReloadKey]);
+    }, [modalOpen, selectedRegion]);
 
     useEffect(() => {
         void loadSuppliers();
@@ -274,14 +326,14 @@ export default function ProveedoresPage() {
     }, [success]);
 
     const filteredSuppliers = useMemo(() => {
-        const query = search.trim().toLowerCase();
+        const query = normalizeText(search);
 
         if (!query) return suppliers;
 
         return suppliers.filter(supplier => {
             const address = supplier.address?.[0];
 
-            const values = [
+            return [
                 supplier.name,
                 supplier.email,
                 supplier.phone_number,
@@ -289,11 +341,13 @@ export default function ProveedoresPage() {
                 address?.house_number,
                 address?.comune,
                 address?.region,
-            ];
-
-            return values.some(value => value?.toLowerCase().includes(query));
+            ].some(value => normalizeText(value ?? "").includes(query));
         });
     }, [suppliers, search]);
+
+    function updateField<K extends keyof SupplierForm>(field: K, value: SupplierForm[K]) {
+        setForm(previous => ({ ...previous, [field]: value }));
+    }
 
     function openCreateModal() {
         setEditingSupplier(null);
@@ -301,7 +355,6 @@ export default function ProveedoresPage() {
         setError("");
         setSuccess("");
         setCommuneError("");
-        setCommunes([]);
         setModalOpen(true);
     }
 
@@ -325,7 +378,6 @@ export default function ProveedoresPage() {
         setError("");
         setSuccess("");
         setCommuneError("");
-        setCommunes([]);
         setModalOpen(true);
     }
 
@@ -337,18 +389,10 @@ export default function ProveedoresPage() {
         setForm(EMPTY_FORM);
         setError("");
         setCommuneError("");
-        setCommunes([]);
     }
 
-    function updateField<K extends keyof SupplierForm>(field: K, value: SupplierForm[K]) {
-        setForm(previous => ({
-            ...previous,
-            [field]: value,
-        }));
-    }
-
-    function handleRegionChange(regionCode: string) {
-        const region = regions.find(item => item.codigo === regionCode);
+    function handleRegionChange(regionNumber: string) {
+        const region = regions.find(item => item.numero === regionNumber);
 
         setForm(previous => ({
             ...previous,
@@ -360,30 +404,23 @@ export default function ProveedoresPage() {
         setCommuneError("");
     }
 
-    function retryCommunes() {
-        setCommuneError("");
-        setCommuneReloadKey(previous => previous + 1);
-    }
-
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         if (!API_URL) {
-            setError("Falta configurar BACKEND en .env.local.");
+            setError("Falta configurar NEXT_PUBLIC_BACKEND en las variables de entorno.");
             return;
         }
 
-        if (!selectedRegion) {
-            setError("Debes seleccionar una región válida.");
+        if (loadingRegions || regionsError || !selectedRegion) {
+            setError("Debes cargar y seleccionar una región válida.");
             return;
         }
 
-        const selectedCommune = availableCommunes.find(
-            commune => normalizeText(commune.nombre) === normalizeText(form.comune),
-        );
+        const commune = availableCommunes.find(item => normalizeText(item.nombre) === normalizeText(form.comune));
 
-        if (!selectedCommune) {
-            setError("Debes seleccionar una comuna válida para la región.");
+        if (loadingCommunes || communeError || !commune) {
+            setError("Debes seleccionar una comuna válida para la región elegida.");
             return;
         }
 
@@ -400,7 +437,7 @@ export default function ProveedoresPage() {
                 house_number: form.house_number.trim(),
                 department: form.department.trim() || null,
                 block: form.block.trim() || null,
-                comune: selectedCommune.nombre,
+                comune: commune.nombre,
                 region: selectedRegion.nombre,
                 reference: form.reference.trim() || null,
             },
@@ -434,14 +471,12 @@ export default function ProveedoresPage() {
     }
 
     async function handleDelete(supplier: Supplier) {
-        const confirmed = window.confirm(
-            `¿Seguro que quieres eliminar a "${supplier.name}"? Esta acción no se puede deshacer.`,
-        );
-
-        if (!confirmed) return;
+        if (!window.confirm(`¿Seguro que quieres eliminar a "${supplier.name}"? Esta acción no se puede deshacer.`)) {
+            return;
+        }
 
         if (!API_URL) {
-            setError("Falta configurar BACKEND en .env.local.");
+            setError("Falta configurar NEXT_PUBLIC_BACKEND en las variables de entorno.");
             return;
         }
 
@@ -478,9 +513,7 @@ export default function ProveedoresPage() {
                             <IconTruck size={18} />
                             <span>Administración / Proveedores</span>
                         </div>
-
                         <h1 className="text-3xl font-bold tracking-tight">Proveedores</h1>
-
                         <p className="mt-2 text-sm text-zinc-400">
                             Administra los proveedores y sus datos de contacto y dirección.
                         </p>
@@ -506,12 +539,22 @@ export default function ProveedoresPage() {
                     <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
                         <IconAlertTriangle size={20} className="mt-0.5 shrink-0" />
                         <div className="flex-1">{error}</div>
-                        <button
-                            onClick={() => setError("")}
-                            aria-label="Cerrar mensaje"
-                            className="text-red-300 hover:text-white"
-                        >
+                        <button onClick={() => setError("")} aria-label="Cerrar mensaje">
                             <IconX size={18} />
+                        </button>
+                    </div>
+                )}
+
+                {regionsError && (
+                    <div className="flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300 sm:flex-row sm:items-center sm:justify-between">
+                        <span>{regionsError}</span>
+                        <button
+                            type="button"
+                            onClick={() => setRegionReloadKey(value => value + 1)}
+                            className="inline-flex items-center gap-2 underline"
+                        >
+                            <IconRefresh size={16} />
+                            Reintentar
                         </button>
                     </div>
                 )}
@@ -524,7 +567,6 @@ export default function ProveedoresPage() {
                                 <IconTruck size={22} />
                             </div>
                         </div>
-
                         <p className="mt-4 text-3xl font-bold">{suppliers.length}</p>
                         <p className="mt-1 text-xs text-zinc-500">Registrados en el sistema</p>
                     </div>
@@ -536,7 +578,6 @@ export default function ProveedoresPage() {
                                 <IconSearch size={22} />
                             </div>
                         </div>
-
                         <p className="mt-4 text-3xl font-bold">{filteredSuppliers.length}</p>
                         <p className="mt-1 text-xs text-zinc-500">Coincidencias con el filtro actual</p>
                     </div>
@@ -849,17 +890,31 @@ export default function ProveedoresPage() {
                                         <select
                                             id="supplier-region"
                                             required
-                                            value={selectedRegion?.codigo ?? ""}
+                                            value={selectedRegion?.numero ?? ""}
                                             onChange={e => handleRegionChange(e.target.value)}
+                                            disabled={loadingRegions || !!regionsError}
                                             className={selectClass}
                                         >
-                                            <option value="">Selecciona una región</option>
+                                            <option value="">
+                                                {loadingRegions ? "Cargando regiones..." : "Selecciona una región"}
+                                            </option>
                                             {regions.map(region => (
-                                                <option key={region.codigo} value={region.codigo}>
+                                                <option key={region.numero} value={region.numero}>
                                                     {region.nombre}
                                                 </option>
                                             ))}
                                         </select>
+
+                                        {regionsError && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setRegionReloadKey(value => value + 1)}
+                                                className="mt-2 inline-flex items-center gap-2 text-sm text-red-300 underline"
+                                            >
+                                                <IconRefresh size={15} />
+                                                Reintentar carga de regiones
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div>
@@ -869,14 +924,12 @@ export default function ProveedoresPage() {
                                         <select
                                             id="supplier-comune"
                                             required
-                                            value={
-                                                availableCommunes.find(
-                                                    commune =>
-                                                        normalizeText(commune.nombre) === normalizeText(form.comune),
-                                                )?.codigo ?? ""
-                                            }
+                                            value={selectedCommune?.codigo ?? ""}
                                             disabled={
-                                                !selectedRegion || loadingCommunes || availableCommunes.length === 0
+                                                !selectedRegion ||
+                                                loadingCommunes ||
+                                                !!communeError ||
+                                                availableCommunes.length === 0
                                             }
                                             onChange={e => {
                                                 const commune = availableCommunes.find(
@@ -891,31 +944,34 @@ export default function ProveedoresPage() {
                                                     ? "Primero selecciona una región"
                                                     : loadingCommunes
                                                       ? "Cargando comunas..."
-                                                      : availableCommunes.length === 0
-                                                        ? "No hay comunas disponibles"
-                                                        : "Selecciona una comuna"}
+                                                      : communeError
+                                                        ? "Error al cargar comunas"
+                                                        : availableCommunes.length === 0
+                                                          ? "No hay comunas disponibles"
+                                                          : "Selecciona una comuna"}
                                             </option>
+
                                             {availableCommunes.map(commune => (
                                                 <option key={commune.codigo} value={commune.codigo}>
                                                     {commune.nombre}
                                                 </option>
                                             ))}
                                         </select>
-                                    </div>
 
-                                    {communeError && (
-                                        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300 sm:col-span-2">
-                                            <div>{communeError}</div>
-                                            <button
-                                                type="button"
-                                                onClick={retryCommunes}
-                                                className="mt-2 inline-flex items-center gap-2 underline hover:text-white"
-                                            >
-                                                <IconRefresh size={15} />
-                                                Reintentar
-                                            </button>
-                                        </div>
-                                    )}
+                                        {communeError && (
+                                            <div className="mt-2 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+                                                <p>{communeError}</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setRegionReloadKey(value => value + 1)}
+                                                    className="mt-2 inline-flex items-center gap-2 underline hover:text-white"
+                                                >
+                                                    <IconRefresh size={15} />
+                                                    Recargar regiones y comunas
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <div>
                                         <label htmlFor="supplier-department" className={labelClass}>
@@ -973,7 +1029,9 @@ export default function ProveedoresPage() {
 
                                 <button
                                     type="submit"
-                                    disabled={saving || loadingCommunes || !!communeError}
+                                    disabled={
+                                        saving || loadingRegions || loadingCommunes || !!regionsError || !!communeError
+                                    }
                                     className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {saving ? (

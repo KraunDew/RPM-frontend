@@ -23,7 +23,7 @@ type Product = {
     price: number;
     description?: string | null;
     stock: number;
-    photo_path?: string | null;
+    photo_url?: string | null;
     image?: string | null;
     category?: { name: string } | null;
     brand?: { name: string } | null;
@@ -43,7 +43,7 @@ function formatPrice(price: number) {
 }
 
 function getProductImage(product: Product): string | null {
-    const path = product.photo_path || product.image;
+    const path = product.photo_url || product.image;
 
     if (!path?.trim()) return null;
 

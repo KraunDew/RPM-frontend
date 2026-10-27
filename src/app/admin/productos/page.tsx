@@ -42,7 +42,7 @@ type Product = {
     description?: string | null;
     price: number | string;
     stock: number;
-    photo_path?: string | null;
+    photo_url?: string | null;
     id_category?: string;
     id_brand?: string;
     id_supplier?: string;
@@ -583,9 +583,9 @@ export default function AdminProductsPage() {
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.03] text-zinc-400">
-                                                    {getPhotoUrl(product.photo_path) ? (
+                                                    {getPhotoUrl(product.photo_url) ? (
                                                         <img
-                                                            src={getPhotoUrl(product.photo_path)!}
+                                                            src={getPhotoUrl(product.photo_url)!}
                                                             alt={`Foto de ${product.name}`}
                                                             loading="lazy"
                                                             onError={event => {
@@ -825,10 +825,10 @@ export default function AdminProductsPage() {
                                             {editingProduct &&
                                                 !selectedPhoto &&
                                                 !removeCurrentPhoto &&
-                                                editingProduct.photo_path && (
+                                                editingProduct.photo_url && (
                                                     <div className="flex items-center gap-4 rounded-lg border border-white/[0.08] bg-black/20 p-3">
                                                         <img
-                                                            src={getPhotoUrl(editingProduct.photo_path) ?? ""}
+                                                            src={getPhotoUrl(editingProduct.photo_url) ?? ""}
                                                             alt={`Foto actual de ${editingProduct.name}`}
                                                             className="h-20 w-20 rounded-lg border border-white/10 object-contain"
                                                             onError={event => {
@@ -870,7 +870,7 @@ export default function AdminProductsPage() {
                                             )}
 
                                             {editingProduct &&
-                                                !editingProduct.photo_path &&
+                                                !editingProduct.photo_url &&
                                                 !selectedPhoto &&
                                                 !removeCurrentPhoto && (
                                                     <p className="text-sm text-zinc-500">

@@ -26,7 +26,7 @@ type Product = {
     price: number;
     stock: number;
     description?: string | null;
-    photo_path?: string | null;
+    photo_url?: string | null;
     image?: string | null;
     category?: { name: string } | null;
     brand?: { name: string } | null;
@@ -70,7 +70,7 @@ function formatPrice(price: number) {
 }
 
 function getProductImage(product: Product): string {
-    const path = product.photo_path || product.image;
+    const path = product.photo_url || product.image;
 
     if (!path?.trim() || !BACKEND_URL) return "";
 

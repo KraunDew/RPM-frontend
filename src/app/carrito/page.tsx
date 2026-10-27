@@ -39,7 +39,7 @@ type ProductoAPI = {
     price: number | string;
     stock: number;
     image?: string | null;
-    photo_path?: string | null;
+    photo_url?: string | null;
 };
 
 const STORAGE_KEY = "rpm-carrito";
@@ -68,7 +68,7 @@ function nombreRelacion(relacion: { name?: string } | string | undefined): strin
  * -> https://tu-backend.com/public/photos/imagen.jpg
  */
 function obtenerUrlImagen(producto: ProductoAPI): string | undefined {
-    const ruta = producto.photo_path || producto.image;
+    const ruta = producto.photo_url || producto.image;
 
     if (!ruta || typeof ruta !== "string") {
         return undefined;
@@ -321,7 +321,7 @@ export default function CarritoPage() {
                     continue;
                 }
 
-                // Normaliza también photo_path, para actualizar las imágenes
+                // Normaliza también photo_url, para actualizar las imágenes
                 // que estaban guardadas en el carrito antes de este cambio.
                 actualizados.push(normalizarProducto(actual, producto.quantity));
 

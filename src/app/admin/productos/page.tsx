@@ -36,7 +36,7 @@ type Product = {
     id_product: string;
     sku: string;
     name: string;
-    model: string;
+    model?: string;
     material?: string | null;
     weight?: number | string | null;
     description?: string | null;
@@ -710,7 +710,6 @@ export default function AdminProductsPage() {
 
                                 <Field label="Modelo" required>
                                     <input
-                                        required
                                         value={form.model}
                                         onChange={e => updateField("model", e.target.value)}
                                         className={inputClass}

@@ -308,7 +308,7 @@ export default function CarritoPage() {
 
     const checkout = useCallback(async () => {
         if (!API_URL) {
-            setError("Falta configurar NEXT_PUBLIC_BACKEND en las variables de entorno de Vercel.");
+            setError("Falta configurar NEXT_PUBLIC_BACKEND.");
             return;
         }
 
@@ -317,66 +317,71 @@ export default function CarritoPage() {
             return;
         }
 
+        // Abrir inmediatamente para evitar el bloqueo del navegador.
+        const paypalWindow = window.open(
+            "about:blank",
+            "RPM_PayPal",
+            "popup=yes,width=550,height=750,resizable=yes,scrollbars=yes",
+        );
+
+        if (!paypalWindow) {
+            setError("Tu navegador bloqueó la ventana emergente. Permite los popups para continuar.");
+            return;
+        }
+
         setPaymentLoading(true);
         setError("");
         setNotice("");
 
         try {
-            // Comprueba la sesión usando la cookie HttpOnly. No se lee ningún JWT desde localStorage.
             await axios.get(`${API_URL}/users/me`, {
                 withCredentials: true,
             });
 
-            // Vuelve a consultar precios y stock directamente en el backend antes de crear la orden.
-            const productsResponse = await axios.get<ApiProduct[]>(`${API_URL}/products`, {
-                withCredentials: true,
-            });
+            const productsResponse = await axios.get<ApiProduct[]>(`${API_URL}/products`, { withCredentials: true });
 
             if (!Array.isArray(productsResponse.data)) {
-                throw new Error("El backend no devolvió una lista válida de productos.");
+                throw new Error("No se pudo validar el catálogo.");
             }
 
             const productsById = new Map(productsResponse.data.map(product => [product.id_product, product]));
+
             const validationErrors: string[] = [];
 
             const refreshedCart = cart.map(item => {
                 const product = productsById.get(item.id_product);
 
                 if (!product) {
-                    validationErrors.push(`"${item.name}" ya no está disponible en el catálogo.`);
+                    validationErrors.push(`"${item.name}" ya no está disponible.`);
                     return item;
                 }
 
-                const currentPrice = Number(product.price);
-                const currentStock = Number(product.stock);
+                const price = Number(product.price);
+                const stock = Number(product.stock);
 
-                if (!Number.isFinite(currentPrice) || !Number.isFinite(currentStock)) {
-                    validationErrors.push(`No se pudieron validar el precio o el stock de "${item.name}".`);
+                if (!Number.isFinite(price) || !Number.isFinite(stock)) {
+                    validationErrors.push(`No se pudo validar "${item.name}".`);
                     return item;
                 }
 
                 const updatedItem: CartItem = {
                     ...item,
-                    sku: product.sku ?? item.sku,
                     name: product.name ?? item.name,
+                    sku: product.sku ?? item.sku,
                     model: product.model ?? item.model,
-                    price: Math.max(0, Math.round(currentPrice)),
-                    stock: Math.max(0, Math.floor(currentStock)),
+                    price: Math.max(0, Math.round(price)),
+                    stock: Math.max(0, Math.floor(stock)),
                     image: product.photo_path ?? product.image ?? item.image,
                 };
 
                 if (updatedItem.stock <= 0) {
                     validationErrors.push(`"${updatedItem.name}" está sin stock.`);
                 } else if (updatedItem.quantity > updatedItem.stock) {
-                    validationErrors.push(
-                        `De "${updatedItem.name}" solicitaste ${updatedItem.quantity}, pero solo quedan ${updatedItem.stock}. Ajusta la cantidad para continuar.`,
-                    );
+                    validationErrors.push(`Solo quedan ${updatedItem.stock} unidades de "${updatedItem.name}".`);
                 }
 
                 if (updatedItem.price !== item.price) {
-                    validationErrors.push(
-                        `El precio de "${updatedItem.name}" cambió. Revisa el nuevo precio antes de pagar.`,
-                    );
+                    validationErrors.push(`El precio de "${updatedItem.name}" cambió. Revisa el nuevo precio.`);
                 }
 
                 return updatedItem;
@@ -385,6 +390,7 @@ export default function CarritoPage() {
             setCart(refreshedCart);
 
             if (validationErrors.length > 0) {
+                paypalWindow.close();
                 setError(validationErrors.join(" "));
                 return;
             }
@@ -401,13 +407,35 @@ export default function CarritoPage() {
             );
 
             const approvalUrl = response.data?.approvalUrl;
+
             if (!approvalUrl) {
-                throw new Error("El backend no devolvió el enlace de aprobación de PayPal.");
+                throw new Error("El servidor no devolvió el enlace de PayPal.");
             }
 
-            window.location.assign(approvalUrl);
+            // Validar que el enlace corresponda a PayPal.
+            const paypalUrl = new URL(approvalUrl);
+
+            if (
+                paypalUrl.protocol !== "https:" ||
+                !(
+                    paypalUrl.hostname === "paypal.com" ||
+                    paypalUrl.hostname.endsWith(".paypal.com") ||
+                    paypalUrl.hostname === "paypalobjects.com" ||
+                    paypalUrl.hostname.endsWith(".paypalobjects.com")
+                )
+            ) {
+                throw new Error("El enlace de aprobación de PayPal no es válido.");
+            }
+
+            paypalWindow.location.replace(approvalUrl);
+            paypalWindow.focus();
         } catch (checkoutError) {
             console.error("Error iniciando el pago:", checkoutError);
+
+            if (!paypalWindow.closed) {
+                paypalWindow.close();
+            }
+
             setError(getErrorMessage(checkoutError));
         } finally {
             setPaymentLoading(false);

@@ -416,6 +416,9 @@ html.light {
     --input: #e5e7eb;
     --ring: #dc2626;
 
+    --scrollbar-thumb: #b8bac2;
+    --scrollbar-track: #e9eaee;
+
     background-color: var(--background);
     color: var(--foreground);
 }
@@ -423,6 +426,27 @@ html.light {
 html.light body {
     background-color: #f5f6f8;
     color: #18181b;
+}
+
+html.light,
+html.light body {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+html.light .rpm-scrollbar {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+html.light *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+html.light *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+
+html.light *::-webkit-scrollbar-thumb:hover {
+    background: #90939d;
 }
 
 html.light .rpm-theme-switch {
@@ -444,66 +468,64 @@ html.light header.sticky {
     box-shadow: 0 8px 24px rgb(15 23 42 / 7%);
 }
 
-/* Fondos oscuros sólidos de las páginas y tarjetas */
-html.light [class*="bg-[#080808"],
-html.light [class*="bg-[#090b0e"],
-html.light [class*="bg-[#090909"],
-html.light [class*="bg-[#0c0c0c"],
-html.light [class*="bg-[#0d0d0d"],
-html.light [class*="bg-[#101010"],
-html.light [class*="bg-[#111"],
-html.light [class*="bg-[#1111"],
-html.light [class*="bg-[#1112"],
-html.light [class*="bg-[#1113"],
-html.light [class*="bg-[#121212"],
-html.light [class*="bg-[#141414"],
-html.light [class*="bg-[#151515"],
-html.light [class*="bg-[#15171b"],
-html.light [class*="bg-[#171419"],
-html.light [class*="bg-[#1c1c1c"],
-html.light [class*="bg-[#090b0e"],
-html.light [class*="bg-[#1b0b0b"],
-html.light [class*="bg-[#120c0c"] {
-    background-color: #ffffff !important;
+/* Todas las superficies oscuras codificadas en las vistas pasan a usar la superficie clara. */
+html.light [class*="bg-[#0"],
+html.light [class*="bg-[#1"] {
+    background-color: var(--card) !important;
 }
 
 /* Superficies translúcidas */
-html.light [class*="bg-white/[0.03"],
-html.light [class*="bg-white/[0.04"],
-html.light [class*="bg-white/[0.05"],
-html.light [class*="bg-white/[0.06"],
-html.light [class*="bg-white/[0.07"] {
+html.light [class*="bg-white/"] {
     background-color: rgb(24 24 27 / 4%) !important;
 }
 
+/* Gradientes que parten de tonos oscuros (tarjetas, portadas y estados vacíos). */
+html.light [class*="bg-gradient-to-"][class*="from-[#"],
+html.light [class*="bg-gradient-to-"][class*="via-[#"],
+html.light [class*="bg-gradient-to-"][class*="to-[#"] {
+    background-image: linear-gradient(135deg, #ffffff 0%, #f0f1f4 100%) !important;
+}
+
 /* Texto principal */
-html.light [class~="text-white"]:not([class*="bg-red-"]):not([class*="bg-emerald-"]),
-html.light [class~="text-gray-200"],
-html.light [class~="text-gray-300"],
-html.light [class~="text-zinc-200"],
-html.light [class~="text-zinc-300"],
-html.light [class~="text-zinc-400"] {
+html.light [class*="text-white"],
+html.light [class*="text-gray-"],
+html.light [class*="text-zinc-1"],
+html.light [class*="text-zinc-2"],
+html.light [class*="text-zinc-3"],
+html.light [class*="text-zinc-4"],
+html.light [class*="text-slate-1"],
+html.light [class*="text-slate-2"],
+html.light [class*="text-slate-3"] {
     color: #27272a !important;
 }
 
 /* Texto secundario */
-html.light [class~="text-zinc-500"],
-html.light [class~="text-zinc-600"],
-html.light [class~="text-gray-400"],
-html.light [class~="text-gray-500"] {
+html.light [class*="text-zinc-5"],
+html.light [class*="text-zinc-6"],
+html.light [class*="text-zinc-7"],
+html.light [class*="text-gray-4"],
+html.light [class*="text-gray-5"],
+html.light [class*="text-slate-4"],
+html.light [class*="text-slate-5"],
+html.light [class*="text-slate-6"] {
     color: #656570 !important;
 }
 
 /* Bordes claros sobre superficies oscuras */
-html.light [class*="border-white/"],
-html.light [class*="border-white/["] {
+html.light [class*="border-white"] {
     border-color: #e4e4e7 !important;
 }
 
 /* Mantiene botones principales en rojo y sus textos blancos */
 html.light [class*="bg-red-600"],
-html.light [class*="bg-red-700"] {
-    color: #ffffff;
+html.light [class*="bg-red-700"],
+html.light [class*="bg-emerald-500"] {
+    color: #ffffff !important;
+}
+
+html.light [class*="bg-red-"][class*="text-white"],
+html.light [class*="bg-emerald-"][class*="text-white"] {
+    color: #ffffff !important;
 }
 
 /* Menú de usuario */

@@ -89,10 +89,10 @@ export default function RegisterPage() {
         email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
             ? "Ingresa un correo electrónico válido."
             : undefined;
-
+    const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/;']).+$/;
     const passwordError =
-        pass.length > 0 && (pass.length < 8 || pass.length > 12)
-            ? "La contraseña debe tener entre 8 y 12 caracteres."
+        pass.length > 0 && (pass.length < 8 || pass.length > 12 || !PASSWORD_REGEX.test(pass))
+            ? "La contraseña debe tener entre 8 y 12 caracteres, incluyendo mayúscula, minúscula, número y carácter especial."
             : undefined;
 
     const confirmPasswordError =
@@ -136,8 +136,10 @@ export default function RegisterPage() {
             return;
         }
 
-        if (pass.length < 8 || pass.length > 12) {
-            setError("La contraseña debe tener entre 8 y 12 caracteres.");
+        if (pass.length < 8 || pass.length > 12 || !PASSWORD_REGEX.test(pass)) {
+            setError(
+                "La contraseña debe tener entre 8 y 12 caracteres, incluyendo mayúscula, minúscula, número y carácter especial.",
+            );
             return;
         }
 

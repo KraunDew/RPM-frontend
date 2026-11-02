@@ -7,8 +7,10 @@ import {
     IconDashboard,
     IconLogout2,
     IconMenu2,
+    IconMoon,
     IconPackage,
     IconShieldCheck,
+    IconSun,
     IconTags,
     IconTruck,
     IconUsers,
@@ -20,6 +22,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_BACKEND;
+const THEME_KEY = "rpm-theme";
+
+type Theme = "dark" | "light";
+
+function applyTheme(theme: Theme) {
+    const root = document.documentElement;
+
+    root.classList.toggle("light", theme === "light");
+    root.classList.toggle("dark", theme === "dark");
+    root.style.colorScheme = theme;
+    localStorage.setItem(THEME_KEY, theme);
+}
 
 const navigation = [
     {
@@ -54,6 +68,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [checkingAccess, setCheckingAccess] = useState(true);
     const [allowed, setAllowed] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [theme, setTheme] = useState<Theme>("dark");
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        const nextTheme: Theme = savedTheme === "light" ? "light" : "dark";
+
+        setTheme(nextTheme);
+        applyTheme(nextTheme);
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -126,6 +149,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     const currentSection = pathname.split("/").filter(Boolean).slice(1).join(" / ") || "Dashboard";
+    const toggleTheme = () => {
+        const nextTheme: Theme = theme === "dark" ? "light" : "dark";
+
+        setTheme(nextTheme);
+        applyTheme(nextTheme);
+    };
 
     const renderNavigation = (mobile = false) => (
         <nav aria-label="Navegación de administración" className="flex-1 space-y-7 overflow-y-auto px-3 py-5 sm:py-6">
@@ -266,14 +295,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </div>
                     </div>
 
-                    <Link
-                        href="/"
-                        className="flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 px-2.5 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-red-500/30 hover:text-white sm:px-3 sm:text-sm"
-                    >
-                        <IconShieldCheck size={17} />
-                        <span className="hidden min-[380px]:inline">Tienda pública</span>
-                        <span className="min-[380px]:hidden">Tienda</span>
-                    </Link>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={toggleTheme}
+                            role="switch"
+                            aria-checked={theme === "light"}
+                            aria-label={theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
+                            title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                            className="rpm-theme-switch flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+                        >
+                            {theme === "dark" ? <IconSun size={19} /> : <IconMoon size={19} />}
+                        </button>
+                        <Link
+                            href="/"
+                            className="flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 px-2.5 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-red-500/30 hover:text-white sm:px-3 sm:text-sm"
+                        >
+                            <IconShieldCheck size={17} />
+                            <span className="hidden min-[380px]:inline">Tienda pública</span>
+                            <span className="min-[380px]:hidden">Tienda</span>
+                        </Link>
+                    </div>
                 </header>
 
                 <main className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-[1600px] p-3 sm:p-5 md:p-6 lg:p-8">

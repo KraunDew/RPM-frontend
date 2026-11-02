@@ -21,6 +21,23 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
     return (
         <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `(() => {
+                            try {
+                                const theme = localStorage.getItem("rpm-theme") === "light" ? "light" : "dark";
+                                const root = document.documentElement;
+                                root.classList.toggle("light", theme === "light");
+                                root.classList.toggle("dark", theme === "dark");
+                                root.style.colorScheme = theme;
+                            } catch {
+                                document.documentElement.classList.add("dark");
+                            }
+                        })();`,
+                    }}
+                />
+            </head>
             <body className="min-h-full flex flex-col bg-mist-100">
                 {children}
                 <RPMChat />

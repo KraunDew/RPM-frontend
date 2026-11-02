@@ -322,7 +322,7 @@ function Header() {
                         href="/carrito"
                         aria-label={`Ver carrito: ${cartCount} ${cartCount === 1 ? "producto" : "productos"}`}
                         aria-current={pathname === "/carrito" ? "page" : undefined}
-                        className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors min-[380px]:h-10 min-[380px]:w-10 sm:h-11 sm:w-11 lg:w-auto lg:gap-2 lg:px-3 ${
+                        className={`rpm-cart-link relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors min-[380px]:h-10 min-[380px]:w-10 sm:h-11 sm:w-11 lg:w-auto lg:gap-2 lg:px-3 ${
                             pathname === "/carrito"
                                 ? "bg-red-700 text-white"
                                 : "text-gray-200 hover:bg-red-700/20 hover:text-red-400"
@@ -333,7 +333,7 @@ function Header() {
                             {cartCount > 0 && (
                                 <span
                                     aria-hidden="true"
-                                    className="absolute -right-2.5 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#090b0e] bg-red-600 px-1 text-[10px] font-bold leading-none text-white"
+                                    className="rpm-cart-badge absolute -right-2.5 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#090b0e] bg-red-600 px-1 text-[10px] font-bold leading-none text-white"
                                 >
                                     {cartCount > 99 ? "99+" : cartCount}
                                 </span>

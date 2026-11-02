@@ -688,7 +688,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                 <button
                     type="button"
                     onClick={() => setIsOpen(true)}
-                    className="group flex items-center gap-2.5 rounded-full border border-white/10 bg-[#0d0f13] px-3 py-3 text-white shadow-2xl shadow-black/80 transition-colors hover:border-red-500 hover:bg-red-600 sm:px-4"
+                    className="rpm-chat-launcher group flex items-center gap-2.5 rounded-full border border-white/10 bg-[#0d0f13] px-3 py-3 text-white shadow-2xl shadow-black/80 transition-colors hover:border-red-500 hover:bg-red-600 sm:px-4"
                     aria-label="Abrir Asistente RPM"
                 >
                     <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-black text-white transition-colors group-hover:bg-[#0d0f13]">

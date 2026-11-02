@@ -468,6 +468,30 @@ html.light header.sticky {
     box-shadow: 0 8px 24px rgb(15 23 42 / 7%);
 }
 
+/* Acceso al carrito: conserva contraste tanto en reposo como al estar activo. */
+html.light .rpm-cart-link {
+    color: #3f3f46;
+}
+
+html.light .rpm-cart-link:hover {
+    background-color: #fff1f2;
+    color: #b91c1c;
+}
+
+html.light .rpm-cart-link[aria-current="page"] {
+    background-color: #b91c1c;
+    color: #ffffff !important;
+}
+
+html.light .rpm-cart-badge {
+    border-color: #ffffff !important;
+}
+
+/* El lanzador del asistente cambia a rojo al pasar el cursor: conserva texto blanco en ese estado. */
+html.light .rpm-chat-launcher:hover {
+    color: #ffffff !important;
+}
+
 /* Todas las superficies oscuras codificadas en las vistas pasan a usar la superficie clara. */
 html.light [class*="bg-[#0"],
 html.light [class*="bg-[#1"] {
@@ -512,19 +536,17 @@ html.light [class*="text-slate-6"] {
 }
 
 /* Bordes claros sobre superficies oscuras */
-html.light [class*="border-white"] {
+html.light [class*="border-white"],
+html.light [class*="border-[#0"],
+html.light [class*="border-[#1"] {
     border-color: #e4e4e7 !important;
 }
 
-/* Mantiene botones principales en rojo y sus textos blancos */
-html.light [class*="bg-red-600"],
-html.light [class*="bg-red-700"],
-html.light [class*="bg-emerald-500"] {
-    color: #ffffff !important;
-}
-
-html.light [class*="bg-red-"][class*="text-white"],
-html.light [class*="bg-emerald-"][class*="text-white"] {
+/* Mantiene blancos solo los textos de botones con fondo sólido activo.
+   No se incluyen las clases hover: para que los iconos se lean sobre la superficie clara. */
+html.light [class~="bg-red-600"],
+html.light [class~="bg-red-700"],
+html.light [class~="bg-emerald-500"] {
     color: #ffffff !important;
 }
 

@@ -471,7 +471,7 @@ export default function CarritoPage() {
 
             <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
                 <Link
-                    href="/catalog"
+                    href="/catalogo"
                     className="mb-8 inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-white"
                 >
                     <IconArrowLeft size={17} />
@@ -531,7 +531,7 @@ export default function CarritoPage() {
                             </p>
                         )}
                         <Link
-                            href="/catalog"
+                            href="/catalogo"
                             className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-500"
                         >
                             Volver al catálogo <IconChevronRight size={17} />
@@ -547,7 +547,7 @@ export default function CarritoPage() {
                             Todavía no agregas repuestos. Explora el catálogo y encuentra lo que necesita tu vehículo.
                         </p>
                         <Link
-                            href="/catalog"
+                            href="/catalogo"
                             className="mt-7 inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-500"
                         >
                             Explorar catálogo <IconChevronRight size={17} />

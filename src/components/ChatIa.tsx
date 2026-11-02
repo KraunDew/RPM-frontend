@@ -48,18 +48,12 @@ interface RPMChatProps {
     apiUrl?: string;
     initialQuery?: string;
     onProductClick?: (product: Product) => void;
+    /** Se conserva por compatibilidad. El chat ya no requiere autenticación. */
     authToken?: string;
 }
 
-const INITIAL_SUGGESTIONS = [
-    "Busco repuestos para mi auto",
-    "Necesito pastillas de freno",
-    "Ayúdame a encontrar un filtro de aceite",
-    "¿Qué repuestos necesito para mi vehículo?",
-];
-
 const WELCOME_MESSAGE =
-    "¡Hola! Soy el asistente virtual de RPM (Repuestos por Minuto). 🚗⚡\n\n¿En qué te puedo ayudar hoy? Puedes preguntarme por repuestos específicos, compatibilidad de piezas o mantenimiento para tu vehículo.";
+    "¡Hola! 👋 Soy Piston, el asistente virtual de RPM.\n\nEstoy aquí para ayudarte a encontrar los repuestos que necesitas para tu vehículo, resolver dudas sobre compatibilidad y orientarte en su mantenimiento.\n\n**¿Qué repuesto estás buscando?** Cuéntame la marca, modelo y año de tu auto para comenzar. 🚗";
 
 const formatCLP = (amount: number): string =>
     new Intl.NumberFormat("es-CL", {
@@ -70,6 +64,7 @@ const formatCLP = (amount: number): string =>
 
 const getApiBaseUrl = (): string => {
     const configuredUrl = process.env.NEXT_PUBLIC_BACKEND?.trim();
+
     return (configuredUrl || "http://localhost:3000").replace(/\/+$/, "");
 };
 
@@ -77,7 +72,9 @@ function normalizeProduct(value: unknown, index: number): Product | null {
     if (!value || typeof value !== "object") return null;
 
     const item = value as Record<string, unknown>;
+
     const id = String(item.id ?? item.id_product ?? item.idProduct ?? "");
+
     const name = String(item.name ?? item.nombre ?? "").trim();
 
     if (!name) return null;
@@ -88,14 +85,18 @@ function normalizeProduct(value: unknown, index: number): Product | null {
     return {
         id: id || String(item.sku ?? `product-${index}`),
         name,
+
         description:
             typeof item.description === "string"
                 ? item.description
                 : typeof item.descripcion === "string"
                   ? item.descripcion
                   : null,
+
         price: Number.isFinite(rawPrice) ? rawPrice : 0,
+
         sku: String(item.sku ?? `SKU-${index}`),
+
         imageUrl:
             typeof item.imageUrl === "string"
                 ? item.imageUrl
@@ -104,10 +105,15 @@ function normalizeProduct(value: unknown, index: number): Product | null {
                   : typeof item.image === "string"
                     ? item.image
                     : null,
+
         category: typeof item.category === "string" ? item.category : undefined,
+
         brand: typeof item.brand === "string" ? item.brand : undefined,
+
         stock: Number.isFinite(rawStock) ? rawStock : undefined,
+
         slug: typeof item.slug === "string" ? item.slug : undefined,
+
         model: typeof item.model === "string" ? item.model : undefined,
     };
 }
@@ -126,7 +132,7 @@ function getErrorMessage(error: unknown): string {
     const serverMessage = axiosError.response?.data?.message;
 
     if (status === 401) {
-        return "Tu sesión no está autenticada o ha expirado. Inicia sesión nuevamente.";
+        return "No se pudo completar la solicitud. Revisa la configuración de acceso del asistente.";
     }
 
     if (status === 403) {
@@ -159,13 +165,16 @@ function getErrorMessage(error: unknown): string {
         return "No se pudo conectar con el backend. Comprueba que esté ejecutándose, que la URL sea correcta y que CORS permita la petición.";
     }
 
-    if (Array.isArray(serverMessage)) return serverMessage.join(", ");
+    if (Array.isArray(serverMessage)) {
+        return serverMessage.join(", ");
+    }
+
     if (serverMessage) return serverMessage;
 
     return "No se pudo completar la consulta. Inténtalo nuevamente.";
 }
 
-export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onProductClick, authToken }: RPMChatProps) {
+export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onProductClick }: RPMChatProps) {
     const [isOpen, setIsOpen] = useState(mode === "embedded");
     const [inputMessage, setInputMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -187,6 +196,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
     const sendingRef = useRef(false);
     const initialQuerySentRef = useRef(false);
 
+    // Desplazamiento automático al último mensaje.
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({
             behavior: "smooth",
@@ -198,22 +208,27 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
         if (isOpen) scrollToBottom();
     }, [messages, isLoading, isOpen, scrollToBottom]);
 
+    // Ajustar automáticamente la altura del textarea.
     useEffect(() => {
         const textarea = textareaRef.current;
+
         if (!textarea) return;
 
         textarea.style.height = "auto";
+
         textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
     }, [inputMessage]);
 
-    // Evita que la página del fondo se desplace al usar el chat móvil.
+    // Bloquear el desplazamiento del fondo en móviles.
     useEffect(() => {
         if (mode !== "floating" || !isOpen) return;
 
         const isMobile = window.matchMedia("(max-width: 639px)").matches;
+
         if (!isMobile) return;
 
         const previousOverflow = document.body.style.overflow;
+
         document.body.style.overflow = "hidden";
 
         return () => {
@@ -221,6 +236,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
         };
     }, [mode, isOpen]);
 
+    // Enviar mensajes al backend sin autenticación.
     const handleSendMessage = useCallback(
         async (textToSend?: string, isRetry = false) => {
             const messageText = (textToSend ?? inputMessage).trim();
@@ -228,6 +244,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
             if (!messageText || sendingRef.current) return;
 
             sendingRef.current = true;
+
             setIsLoading(true);
             setApiError(null);
             setPendingMessage(messageText);
@@ -250,32 +267,23 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                 textareaRef.current.style.height = "auto";
             }
 
+            const baseUrl = (apiUrl || getApiBaseUrl()).replace(/\/+$/, "");
+
+            const endpoint = `${baseUrl}/ia/chat`;
+
             try {
-                const baseUrl = (apiUrl || getApiBaseUrl()).replace(/\/+$/, "");
-                const endpoint = `${baseUrl}/ia/chat`;
-
-                let token = authToken?.trim();
-
-                if (!token && typeof window !== "undefined") {
-                    try {
-                        token = window.localStorage.getItem("token") || undefined;
-                    } catch {
-                        token = undefined;
-                    }
-                }
-
                 const payload: ChatPayload = {
                     message: messageText,
                     ...(conversationId ? { conversationId } : {}),
                 };
 
+                // No requiere token, cuenta ni sesión iniciada.
                 const response = await axios.post<RPMChatResponse>(endpoint, payload, {
                     timeout: 60_000,
-                    withCredentials: true,
+                    withCredentials: false,
                     headers: {
                         "Content-Type": "application/json",
                         Accept: "application/json",
-                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
                     },
                 });
 
@@ -313,12 +321,13 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
             } catch (error: unknown) {
                 console.error("[RPM Chat Error]", {
                     error,
-                    endpoint: `${(apiUrl || getApiBaseUrl()).replace(/\/+$/, "")}/ia/chat`,
+                    endpoint,
                     status: axios.isAxiosError(error) ? error.response?.status : undefined,
                     response: axios.isAxiosError(error) ? error.response?.data : undefined,
                 });
 
                 const errorMessage = getErrorMessage(error);
+
                 setApiError(errorMessage);
 
                 setMessages(previous => [
@@ -336,25 +345,30 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                 setIsLoading(false);
             }
         },
-        [apiUrl, authToken, conversationId, inputMessage],
+        [apiUrl, conversationId, inputMessage],
     );
 
+    // Ejecutar una consulta inicial si el componente la recibe.
     useEffect(() => {
         if (!initialQuery?.trim() || initialQuerySentRef.current) {
             return;
         }
 
         initialQuerySentRef.current = true;
+
         void handleSendMessage(initialQuery);
     }, [initialQuery, handleSendMessage]);
 
+    // Enviar con Enter.
     const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
+
             void handleSendMessage();
         }
     };
 
+    // Tarjetas de productos.
     const renderProductCard = (product: Product) => {
         const productId = product.id;
 
@@ -378,6 +392,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                         ) : (
                             <div className="flex flex-col items-center justify-center text-zinc-500">
                                 <IconCar size={24} stroke={1.4} />
+
                                 <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">RPM</span>
                             </div>
                         )}
@@ -424,6 +439,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                                     className="inline-flex items-center justify-center gap-1 rounded-lg bg-red-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-red-500"
                                 >
                                     <span>Ver pieza</span>
+
                                     <IconArrowRight size={12} />
                                 </Link>
                             ) : (
@@ -436,6 +452,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
         );
     };
 
+    // Contenido principal del chat.
     const chatContent = (
         <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-none border border-white/10 bg-[#0d0f13] text-zinc-100 shadow-2xl antialiased sm:rounded-2xl">
             {/* Encabezado */}
@@ -443,11 +460,13 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                 <div className="flex min-w-0 items-center gap-3">
                     <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-600 font-black text-white shadow-lg shadow-red-950/40">
                         <span className="text-xs tracking-tighter">RPM</span>
+
                         <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0d0f13]" />
                     </div>
 
                     <div className="min-w-0">
                         <h3 className="truncate text-sm font-bold tracking-tight text-white">Chat Piston</h3>
+
                         <p className="truncate text-[11px] text-zinc-400">Catálogo & Repuestos Automotrices</p>
                     </div>
                 </div>
@@ -485,31 +504,41 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                                         remarkPlugins={[remarkGfm]}
                                         components={{
                                             p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+
                                             strong: ({ children }) => (
                                                 <strong className="font-bold text-white">{children}</strong>
                                             ),
+
                                             em: ({ children }) => <em className="italic">{children}</em>,
+
                                             ul: ({ children }) => (
                                                 <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>
                                             ),
+
                                             ol: ({ children }) => (
                                                 <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>
                                             ),
+
                                             li: ({ children }) => <li className="pl-1">{children}</li>,
+
                                             h1: ({ children }) => (
                                                 <h1 className="mb-2 mt-3 text-lg font-bold text-white">{children}</h1>
                                             ),
+
                                             h2: ({ children }) => (
                                                 <h2 className="mb-2 mt-3 text-base font-bold text-white">{children}</h2>
                                             ),
+
                                             h3: ({ children }) => (
                                                 <h3 className="mb-1 mt-2 text-sm font-bold text-white">{children}</h3>
                                             ),
+
                                             code: ({ children }) => (
                                                 <code className="break-words rounded bg-black/30 px-1.5 py-0.5 font-mono text-xs text-red-300 [overflow-wrap:anywhere]">
                                                     {children}
                                                 </code>
                                             ),
+
                                             a: ({ children, href }) => (
                                                 <a
                                                     href={href}
@@ -520,6 +549,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                                                     {children}
                                                 </a>
                                             ),
+
                                             hr: () => <hr className="my-3 border-white/10" />,
                                         }}
                                     >
@@ -527,6 +557,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                                     </ReactMarkdown>
                                 </div>
 
+                                {/* Productos encontrados */}
                                 {msg.products && msg.products.length > 0 && (
                                     <div className="mt-3 min-w-0 space-y-2 border-t border-white/10 pt-3">
                                         <p className="text-[10px] font-bold uppercase tracking-wider text-red-400 sm:text-[11px]">
@@ -539,6 +570,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                                     </div>
                                 )}
 
+                                {/* Hora */}
                                 <div
                                     className={`mt-2 text-right text-[10px] ${
                                         isUser ? "text-red-200" : "text-zinc-500"
@@ -554,10 +586,12 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                     );
                 })}
 
+                {/* Indicador de carga */}
                 {isLoading && (
                     <div className="flex items-start gap-2">
                         <div className="flex max-w-full items-center gap-2 rounded-2xl rounded-bl-sm border border-white/10 bg-[#14171d] px-3 py-3 text-xs text-zinc-400 sm:px-4">
                             <IconRefresh className="shrink-0 animate-spin text-red-500" size={16} />
+
                             <span className="font-medium text-zinc-300">RPM buscando repuestos...</span>
                         </div>
                     </div>
@@ -566,33 +600,12 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Sugerencias */}
-            {messages.length <= 2 && !isLoading && (
-                <div className="max-h-32 shrink-0 overflow-y-auto border-t border-white/10 bg-[#12151b]/80 px-3 py-2.5 sm:max-h-36 sm:px-4">
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 sm:text-[11px]">
-                        Consultas frecuentes
-                    </p>
-
-                    <div className="flex flex-wrap gap-1.5">
-                        {INITIAL_SUGGESTIONS.map(suggestion => (
-                            <button
-                                key={suggestion}
-                                type="button"
-                                onClick={() => void handleSendMessage(suggestion)}
-                                className="max-w-full rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-left text-xs font-medium text-zinc-300 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
-                            >
-                                {suggestion}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Errores */}
+            {/* Errores y reintentos */}
             {apiError && (
                 <div className="flex shrink-0 items-start justify-between gap-2 border-t border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-300 sm:px-4">
                     <span className="flex min-w-0 items-start gap-1.5">
                         <IconAlertTriangle size={15} className="mt-0.5 shrink-0 text-red-400" />
+
                         <span className="break-words [overflow-wrap:anywhere]">{apiError}</span>
                     </span>
 
@@ -627,7 +640,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                             value={inputMessage}
                             onChange={event => setInputMessage(event.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Ej: pastillas Chevrolet Sail 2020..."
+                            placeholder="¿Qué repuesto necesitas?"
                             disabled={isLoading}
                             aria-label="Escribe tu consulta"
                             className="block max-h-[120px] min-h-[42px] w-full resize-none bg-transparent px-3 py-3 text-base text-zinc-100 outline-none placeholder:text-zinc-600 disabled:opacity-50 sm:text-sm"
@@ -647,6 +660,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
                 <p className="mt-1.5 hidden text-center text-[10px] text-zinc-500 sm:block">
                     Asistente RPM con Inteligencia Artificial. Presiona Enter para enviar.
                 </p>
+
                 <p className="mt-1.5 text-center text-[10px] text-zinc-500 sm:hidden">
                     Enter para enviar · Shift + Enter para nueva línea
                 </p>
@@ -654,6 +668,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
         </div>
     );
 
+    // Modo integrado.
     if (mode === "embedded") {
         return (
             <div className="mx-auto flex h-[min(720px,80dvh)] min-h-[420px] w-full max-w-5xl flex-col sm:h-[650px]">
@@ -662,6 +677,7 @@ export default function RPMChat({ mode = "floating", apiUrl, initialQuery, onPro
         );
     }
 
+    // Modo flotante.
     return (
         <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-50 sm:bottom-5 sm:right-5">
             {isOpen ? (

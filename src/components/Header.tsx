@@ -287,8 +287,16 @@ function Header() {
                         alt="RPM, Revoluciones por Minuto"
                         width={160}
                         height={64}
-                        className="h-auto w-[88px] object-contain min-[380px]:w-[105px] sm:w-[145px] lg:w-[155px]"
+                        className="rpm-logo-dark h-auto w-[88px] object-contain min-[380px]:w-[105px] sm:w-[145px] lg:w-[155px]"
                         priority
+                    />
+                    <Image
+                        src="/assets/logo-black.png"
+                        alt=""
+                        aria-hidden="true"
+                        width={160}
+                        height={64}
+                        className="rpm-logo-light h-auto w-[88px] object-contain min-[380px]:w-[105px] sm:w-[145px] lg:w-[155px]"
                     />
                 </Link>
 

@@ -460,6 +460,18 @@ html.light .rpm-theme-switch:hover {
     background: #fff1f2;
 }
 
+.rpm-logo-light {
+    display: none;
+}
+
+html.light .rpm-logo-dark {
+    display: none;
+}
+
+html.light .rpm-logo-light {
+    display: block;
+}
+
 /* Encabezado */
 html.light header.sticky {
     background-color: rgb(255 255 255 / 94%) !important;
